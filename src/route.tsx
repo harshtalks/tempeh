@@ -273,14 +273,3 @@ export type CreateRouteConfig<
         baseUrl: string;
       };
 };
-
-// example
-
-const x = createRoute({
-  fn: () => "/",
-  paramsSchema: object({}),
-  name: "home",
-  options: {
-    internal: true,
-  },
-});

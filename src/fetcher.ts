@@ -203,29 +203,3 @@ export type CustomHandlerEndPointConfig<
 > = Omit<EndPointConfig<Params, Body, HttpMethod>, "requestConfig"> & {
   httpMethod: HttpMethod;
 };
-
-// const jsonApiTesting = createEndPoint(
-//   {
-//     httpMethod: "GET",
-//     path: createRoute({
-//       name: "/",
-//       fn: () => "/api/auth/demo",
-//       options: {
-//         internal: false,
-//         baseUrl: "http://localhost:3000",
-//       },
-//       paramsSchema: object({}),
-//     }),
-//     SafeResponse: false,
-//   },
-//   {
-//     overrideStatusCodeErrors: {
-//       404: ({ code, defaultErrorMessage }) =>
-//         "lol the error happened here with " + code + " " + defaultErrorMessage,
-//     },
-//   }
-// );
-
-// (async () => {
-//   const output = jsonApiTesting({ params: {} });
-// })();
