@@ -1,0 +1,52 @@
+{
+  "name": "tempeh",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "version": "0.0.1",
+  "description": "type safe route builder with search params, params hook and wrapper fetcher for Next.js app directory.",
+  "type": "module",
+  "devDependencies": {
+    "@changesets/cli": "^2.27.1",
+    "@types/bun": "latest",
+    "tsup": "^8.0.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/react": "^18.2.74",
+    "next": "^14.1.4",
+    "query-string": "^8.2.0",
+    "react": "^18.2.0",
+    "typescript": "^5.3.3",
+    "zod": "^3.22.4",
+    "zod-validation-error": "^3.2.0"
+  },
+  "scripts": {
+    "publish-library": "bun changeset publish",
+    "build-with-tsup": "tsup src/index.ts --format cjs,esm --dts"
+  },
+  "author": "Harsh Pareek",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harshtalks/tempeh.git"
+  },
+  "keywords": [
+    "zod",
+    "fetch",
+    "typescript",
+    "fetcher",
+    "routes",
+    "params",
+    "query-params"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist/",
+    "src/*.ts"
+  ]
+}
