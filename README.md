@@ -1,10 +1,10 @@
-# safe-fetchttp
+# Tempeh
 
 It consists of a wrapper fetcher factory function that you can use to create fetcher functions for your need.
 
 let's understand with the example.
 
-Suppose we have a nextjs app where we have a dynamic page for a workspace details that takes workspaceId as a dynamic param with the help of ZOD library.
+Suppose we have a Next.js app where we have a dynamic page for a workspace details that takes workspaceId as a dynamic param with the help of Zod library.
 
 Important: You need to have zod installed for this.
 
@@ -38,37 +38,51 @@ export const WorkspaceRoute = createRoute({
 </Link>;
 ```
 
+Or you can use our declarative routing approach as following:
+
+```tsx
+<WorkspaceRoute.Link params={{ workspaceId: "123" }}>
+  <Button>Workspace</Button>
+</WorkspaceRoute.Link>
+```
+
 Package also serves the custom fetcher function generator to generate small async fetcher functions. Example:
 
 ```ts
-export const getPosts = createEndPoint({
-  HttpMethod: "GET",
+// this fetcher creates a function to fetch the todo from json mock api
+const getTodo = createEndPoint({
+  httpMethod: "GET",
   path: createRoute({
-    fn: (params) => `/posts/${params.id}`,
-    paramsSchema: object({
-      id: string(),
-    }),
-    name: "getPosts",
+    name: "getTodos",
+    fn: ({ todoId }) => `/todos/${todoId}`,
     options: {
       internal: false,
       baseUrl: "https://jsonplaceholder.typicode.com",
     },
+    paramsSchema: object({ todoId: number() }),
   }),
-  response: object({
-    id: string(),
+  SafeResponse: true,
+  responseSchema: object({
+    userId: number(),
+    id: number(),
     title: string(),
-    body: string(),
+    completed: boolean(),
   }),
-});
-
-const posts = getPosts({
-  params: {
-    id: `1`,
-  },
-  init: {
+  requestConfig: {
     headers: {
-      "Content-Type": "application/json",
+      "x-custom-header": "custom-value",
     },
   },
 });
+
+// iife to invoke the function and display result on console
+(async () => {
+  const todos = await getTodo({
+    params: {
+      todoId: 1,
+    },
+  });
+
+  console.log(todos);
+})();
 ```

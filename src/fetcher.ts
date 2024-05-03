@@ -2,6 +2,7 @@ import {
   TypeOf,
   ZodError,
   ZodSchema,
+  boolean,
   input,
   number,
   object,
@@ -51,7 +52,7 @@ export type EndPoint<
 } & (Methods extends HttpMethodsWithBody
   ? {
       httpMethod: HttpMethodsWithBody;
-      body: RequestBody;
+      bodySchema: RequestBody;
     }
   : {
       httpMethod: HttpMethodsWithoutBody;
@@ -59,11 +60,11 @@ export type EndPoint<
   (SafeResponse extends true
     ? {
         SafeResponse: true;
-        response: Response;
+        responseSchema: Response;
       }
     : {
         SafeResponse: false;
-        response?: never;
+        responseSchema?: never;
       });
 /**
  * @name isHttpMethodWithBody
@@ -129,7 +130,7 @@ export const createEndPoint = <
       const response = await fetchToUse(endPoint.path(params), {
         method: endPoint.httpMethod,
         ...(isHttpMethodWithBody(endPoint) && body
-          ? { body: JSON.stringify(endPoint.body.parse(body)) }
+          ? { body: JSON.stringify(endPoint.bodySchema.parse(body)) }
           : {}),
         ...(endPoint.requestConfig ? endPoint.requestConfig : {}),
       });
@@ -155,7 +156,7 @@ export const createEndPoint = <
       const responseData = await response.json();
 
       if (endPoint.SafeResponse) {
-        const parsedResponseData = endPoint.response.parse(
+        const parsedResponseData = endPoint.responseSchema.parse(
           responseData
         ) as output<Response>;
 
