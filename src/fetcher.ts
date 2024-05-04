@@ -124,15 +124,22 @@ export const createEndPoint = <
   return async ({
     params,
     body,
+    options: requestLevelOptions,
   }: EndPointConfig<Params, Body, typeof endPoint.httpMethod>) => {
     try {
       const fetchToUse = options?.customFetchSignature || fetch;
+
+      const endPointRequestConfig = {
+        ...endPoint.requestConfig,
+        ...requestLevelOptions?.requestConfig,
+      };
+
       const response = await fetchToUse(endPoint.path(params), {
         method: endPoint.httpMethod,
         ...(isHttpMethodWithBody(endPoint) && body
           ? { body: JSON.stringify(endPoint.bodySchema.parse(body)) }
           : {}),
-        ...(endPoint.requestConfig ? endPoint.requestConfig : {}),
+        ...endPointRequestConfig,
       });
 
       const statusCode = response.status;
@@ -190,16 +197,18 @@ export type EndPointConfig<
    * The parameters for the endpoint
    */
   params: input<Params>;
+  options?: {
+    requestConfig?: Omit<RequestInit, "body" | "method">;
+  };
 } & (HttpMethod extends HttpMethodsWithBody
-  ? { body: input<Body> }
+  ? {
+      /**
+       * @name body
+       * The body for the endpoint
+       */
+
+      body: input<Body>;
+    }
   : {
       body?: never;
     });
-
-export type CustomHandlerEndPointConfig<
-  Params extends ZodSchema,
-  Body extends ZodSchema,
-  HttpMethod extends HttpMethods = HttpMethods
-> = Omit<EndPointConfig<Params, Body, HttpMethod>, "requestConfig"> & {
-  httpMethod: HttpMethod;
-};
