@@ -10,7 +10,7 @@ import {
   output,
   string,
 } from "zod";
-import { RouteConfig, createRoute } from "./route.js";
+import { RouteConfig } from "./route.js";
 import { fromError } from "zod-validation-error";
 import {
   StatusCodes,
