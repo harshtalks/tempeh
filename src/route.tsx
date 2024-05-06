@@ -28,7 +28,7 @@ export type RouteConfig<
 
 /**
  * @name routeBuilder
- * @description routeBuilder is a function which returns a function called createRoute. createRoute is a function which takes an object with name, fn, paramsSchema, searchParamsSchema and options. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
+ * @description routeBuilder is a function based on singleton pattern which returns a function called createRoute. createRoute is a function which takes an object with name, fn, paramsSchema, searchParamsSchema and options. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
  * Make sure you call this function only once in your application as it tracks the routes internally for the search params and params. If you call it multiple times, You will loose the types on many places.
  * @returns {createRoute}
  * @example
@@ -36,198 +36,241 @@ export type RouteConfig<
  * const createRoute = routeBuilder();
  */
 
-export const routeBuilder = () => {
-  const routes: Record<string, RouteConfig<any, any>> = {};
+export const routeBuilder = (() => {
+  // Private variable to store the single instance
+  let instance: ReturnType<typeof buildRouteBuilder> | null = null;
 
-  const urlSchema = string().min(1).url();
+  // Private function to create the instance
 
-  const buildRoute = <
-    TParams extends ZodSchema,
-    TSearchParams extends ZodSchema
-  >(
-    name: string,
-    fn: (params: input<TParams>) => string,
-    paramSchema: TParams = {} as TParams,
-    searchSchema: TSearchParams = {} as TSearchParams,
-    urlOptions:
-      | {
-          internal: true;
+  const buildRouteBuilder = () => {
+    const routes: Record<string, RouteConfig<any, any>> = {};
+
+    const urlSchema = string().min(1).url();
+
+    const buildRoute = <
+      TParams extends ZodSchema,
+      TSearchParams extends ZodSchema
+    >(
+      name: string,
+      fn: (params: input<TParams>) => string,
+      paramSchema: TParams = {} as TParams,
+      searchSchema: TSearchParams = {} as TSearchParams,
+      urlOptions:
+        | {
+            internal: true;
+          }
+        | {
+            internal: false;
+            baseUrl: string;
+          }
+    ): RouteConfig<TParams, TSearchParams> => {
+      // check if the route already exists
+      if (routes[name]) {
+        throw new Error(`Route with name ${name} already exists`);
+      }
+
+      const route: RouteConfig<TParams, TSearchParams> = (params, options) => {
+        let route = fn(params);
+
+        if (!urlOptions.internal) {
+          const baseUrl = new URL(urlSchema.parse(urlOptions.baseUrl));
+          route = new URL(route, baseUrl).toString();
         }
-      | {
-          internal: false;
-          baseUrl: string;
+
+        const searchQuery =
+          options?.search && queryString.stringify(options.search);
+
+        return [route, searchQuery ? `?${searchQuery}` : ``].join(``);
+      };
+
+      routes[name] = route;
+
+      route.useParams = (): output<TParams> => {
+        const routeName =
+          Object.entries(routes).find(([key, value]) => value === route)?.[0] ||
+          ("Invalid Route" as never);
+
+        const result = paramSchema.safeParse(useNextParams());
+
+        if (!result.success) {
+          throw new Error(
+            `Invalid params for route ${routeName}: ${result.error}`
+          );
         }
-  ): RouteConfig<TParams, TSearchParams> => {
-    // check if the route already exists
-    if (routes[name]) {
-      throw new Error(`Route with name ${name} already exists`);
-    }
 
-    const route: RouteConfig<TParams, TSearchParams> = (params, options) => {
-      let route = fn(params);
+        return result.data;
+      };
 
-      if (!urlOptions.internal) {
-        const baseUrl = new URL(urlSchema.parse(urlOptions.baseUrl));
-        route = new URL(route, baseUrl).toString();
-      }
+      route.useSearchParams = (): output<TSearchParams> => {
+        const routeName =
+          Object.entries(routes).find(([key, value]) => value === route)?.[0] ||
+          ("Invalid Route" as never);
 
-      const searchQuery =
-        options?.search && queryString.stringify(options.search);
+        const result = searchSchema.safeParse(
+          convertURLSearchParamsToObject(useNextSearchParams())
+        );
 
-      return [route, searchQuery ? `?${searchQuery}` : ``].join(``);
+        if (!result.success) {
+          throw new Error(
+            `Invalid search params for route ${routeName}: ${result.error}`
+          );
+        }
+
+        return result.data;
+      };
+
+      route.params = undefined as output<TParams>;
+      route.searchParams = undefined as output<TSearchParams>;
+
+      route.Link = ({ children, params, searchParams, ...props }) => {
+        let route = fn(params);
+
+        if (!urlOptions.internal) {
+          const baseUrl = new URL(urlSchema.parse(urlOptions.baseUrl));
+          route = new URL(route, baseUrl).toString();
+        }
+
+        const searchQuery = searchParams && queryString.stringify(searchParams);
+
+        const href = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
+        return (
+          <Link {...props} href={href}>
+            {children}
+          </Link>
+        );
+      };
+
+      Object.defineProperty(route, "params", {
+        get() {
+          throw new Error(
+            "Routes.[route].params is only for type usage, not runtime. Use it like `typeof Routes.[routes].params`"
+          );
+        },
+      });
+
+      Object.defineProperty(route, "searchParams", {
+        get() {
+          throw new Error(
+            "Routes.[route].searchParams is only for type usage, not runtime. Use it like `typeof Routes.[routes].searchParams`"
+          );
+        },
+      });
+
+      return route;
     };
 
-    routes[name] = route;
+    /**
+     * @name createRoute
+     * @description
+     * It creates a route with the given name, function, paramsSchema, searchParamsSchema and options. here options can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
+     *
+     * @returns {RouteConfig}
+     *
+     * @example
+     *  export const WorkspaceRoute = createRoute({
+     *    fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
+     *     name: "WorkspaceRoute",
+     *    paramsSchema: object({
+     *      workspaceId: string(),
+     *     }),
+     *     options: { internal: true },
+     *   searchParamsSchema: object({
+     *       withOwner: boolean(),
+     *     }),
+     *  });
+     *
+     * WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } });
+     * result => /workspace/123?withOwner=true
+     *
+     */
 
-    route.useParams = (): output<TParams> => {
-      const routeName =
-        Object.entries(routes).find(([key, value]) => value === route)?.[0] ||
-        ("Invalid Route" as never);
+    const createRoute = <
+      TParams extends ZodSchema,
+      TSearchParams extends ZodSchema
+    >({
+      /**
+       * @name name
+       * @description name of the route. It should be unique as internally this key is used to store the route, Will throw an error if the route with the same name already exists.
+       */
+      name,
 
-      const result = paramSchema.safeParse(useNextParams());
+      /**
+       * @name fn
+       * @param params
+       * @returns {string}
+       * @description function which takes params and returns the route. Once you give the paramSchema, it will automatically infer the type of the params.
+       */
+      fn,
 
-      if (!result.success) {
-        throw new Error(
-          `Invalid params for route ${routeName}: ${result.error}`
-        );
-      }
+      /**
+       * @name searchParamsSchema
+       * @type {ZodSchema}
+       *
+       * @description searchParamsSchema is the schema of the search params which the route takes. It is used to infer the type of the search params. It is also used to validate the search params. If the search params are not valid, it will throw an error. It is an optional field
+       *
+       * @optional
+       */
+      paramsSchema,
 
-      return result.data;
+      /**
+       * @name searchParamsSchema
+       * @type {ZodSchema}
+       *
+       * @description searchParamsSchema is the schema of the search params which the route takes. It is used to infer the type of the search params. It is also used to validate the search params. If the search params are not valid, it will throw an error. It is an optional field
+       *
+       * @optional
+       */
+      searchParamsSchema,
+
+      /**
+       * @name options
+       * @type {Object}
+       * @description options is an object which can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. baseUrl needs to follow basic url format otherwise it will throw an error.
+       */
+      options,
+    }: CreateRouteConfig<TParams, TSearchParams>) => {
+      return buildRoute(name, fn, paramsSchema, searchParamsSchema, options);
     };
 
-    route.useSearchParams = (): output<TSearchParams> => {
-      const routeName =
-        Object.entries(routes).find(([key, value]) => value === route)?.[0] ||
-        ("Invalid Route" as never);
-
-      const result = searchSchema.safeParse(
-        convertURLSearchParamsToObject(useNextSearchParams())
-      );
-
-      if (!result.success) {
-        throw new Error(
-          `Invalid search params for route ${routeName}: ${result.error}`
-        );
-      }
-
-      return result.data;
-    };
-
-    route.params = undefined as output<TParams>;
-    route.searchParams = undefined as output<TSearchParams>;
-
-    route.Link = ({ children, params, searchParams, ...props }) => {
-      let route = fn(params);
-
-      if (!urlOptions.internal) {
-        const baseUrl = new URL(urlSchema.parse(urlOptions.baseUrl));
-        route = new URL(route, baseUrl).toString();
-      }
-
-      const searchQuery = searchParams && queryString.stringify(searchParams);
-
-      const href = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
-      return (
-        <Link {...props} href={href}>
-          {children}
-        </Link>
-      );
-    };
-
-    Object.defineProperty(route, "params", {
-      get() {
-        throw new Error(
-          "Routes.[route].params is only for type usage, not runtime. Use it like `typeof Routes.[routes].params`"
-        );
-      },
-    });
-
-    Object.defineProperty(route, "searchParams", {
-      get() {
-        throw new Error(
-          "Routes.[route].searchParams is only for type usage, not runtime. Use it like `typeof Routes.[routes].searchParams`"
-        );
-      },
-    });
-
-    return route;
+    return { createRoute };
   };
 
-  /**
-   * @name createRoute
-   * @description
-   * It creates a route with the given name, function, paramsSchema, searchParamsSchema and options. here options can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
-   *
-   * @returns {RouteConfig}
-   *
-   * @example
-   *  export const WorkspaceRoute = createRoute({
-   *    fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
-   *     name: "WorkspaceRoute",
-   *    paramsSchema: object({
-   *      workspaceId: string(),
-   *     }),
-   *     options: { internal: true },
-   *   searchParamsSchema: object({
-   *       withOwner: boolean(),
-   *     }),
-   *  });
-   *
-   * WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } });
-   * result => /workspace/123?withOwner=true
-   *
-   */
-
-  const createRoute = <
-    TParams extends ZodSchema,
-    TSearchParams extends ZodSchema
-  >({
-    /**
-     * @name name
-     * @description name of the route. It should be unique as internally this key is used to store the route, Will throw an error if the route with the same name already exists.
-     */
-    name,
-
-    /**
-     * @name fn
-     * @param params
-     * @returns {string}
-     * @description function which takes params and returns the route. Once you give the paramSchema, it will automatically infer the type of the params.
-     */
-    fn,
-
-    /**
-     * @name searchParamsSchema
-     * @type {ZodSchema}
-     *
-     * @description searchParamsSchema is the schema of the search params which the route takes. It is used to infer the type of the search params. It is also used to validate the search params. If the search params are not valid, it will throw an error. It is an optional field
-     *
-     * @optional
-     */
-    paramsSchema,
-
-    /**
-     * @name searchParamsSchema
-     * @type {ZodSchema}
-     *
-     * @description searchParamsSchema is the schema of the search params which the route takes. It is used to infer the type of the search params. It is also used to validate the search params. If the search params are not valid, it will throw an error. It is an optional field
-     *
-     * @optional
-     */
-    searchParamsSchema,
-
-    /**
-     * @name options
-     * @type {Object}
-     * @description options is an object which can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. baseUrl needs to follow basic url format otherwise it will throw an error.
-     */
-    options,
-  }: CreateRouteConfig<TParams, TSearchParams>) => {
-    return buildRoute(name, fn, paramsSchema, searchParamsSchema, options);
+  return {
+    getInstance: () => {
+      // If instance is null, create a new instance
+      if (!instance) {
+        instance = buildRouteBuilder();
+      }
+      // Return the instance
+      return instance;
+    },
   };
+})();
 
-  return createRoute;
-};
+/**
+ * @name createRoute
+ * @description
+ * It creates a route with the given name, function, paramsSchema, searchParamsSchema and options. here options can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
+ *
+ * @returns {RouteConfig}
+ *
+ * @example
+ *  export const WorkspaceRoute = createRoute({
+ *    fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
+ *     name: "WorkspaceRoute",
+ *    paramsSchema: object({
+ *      workspaceId: string(),
+ *     }),
+ *     options: { internal: true },
+ *   searchParamsSchema: object({
+ *       withOwner: boolean(),
+ *     }),
+ *  });
+ *
+ * WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } });
+ * result => /workspace/123?withOwner=true
+ *
+ */
 
 export type CreateRouteConfig<
   UrlParams extends ZodSchema,
