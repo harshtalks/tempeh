@@ -223,8 +223,6 @@ export type CreateRouteConfig<
   UrlParams extends ZodSchema,
   SearchParams extends ZodSchema
 > = {
-  // give jsdoc
-
   /**
    * @name name
    * @description name of the route. It should be unique as internally this key is used to store the route, Will throw an error if the route with the same name already exists.

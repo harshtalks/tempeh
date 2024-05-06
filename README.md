@@ -23,6 +23,12 @@ Now here you get little to no safety plus it breaks the dry principle. Here's ho
 ```tsx
 // Path: src/routes.ts
 
+// You should only have a single `createRoute` constant across your function as this will make sure you do not have same named routes multiple times. It tracks the params internally.
+
+// Some global file named: `global.route.ts`
+const createRoute = routeBuilder();
+
+// Importing from `global.route.ts`
 export const WorkspaceRoute = createRoute({
   fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
   name: "WorkspaceRoute",
