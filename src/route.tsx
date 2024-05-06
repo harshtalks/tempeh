@@ -26,6 +26,16 @@ export type RouteConfig<
   ) => JSX.Element;
 };
 
+/**
+ * @name routeBuilder
+ * @description routeBuilder is a function which returns a function called createRoute. createRoute is a function which takes an object with name, fn, paramsSchema, searchParamsSchema and options. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
+ * Make sure you call this function only once in your application as it tracks the routes internally for the search params and params. If you call it multiple times, You will loose the types on many places.
+ * @returns {createRoute}
+ * @example
+ * // file name: global.route.ts
+ * const createRoute = routeBuilder();
+ */
+
 export const routeBuilder = () => {
   const routes: Record<string, RouteConfig<any, any>> = {};
 
