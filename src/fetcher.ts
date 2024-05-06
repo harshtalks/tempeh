@@ -2,6 +2,7 @@ import {
   TypeOf,
   ZodError,
   ZodSchema,
+  array,
   boolean,
   input,
   number,
@@ -124,14 +125,14 @@ export const createEndPoint = <
   return async ({
     params,
     body,
-    options: requestLevelOptions,
+    requestOptions,
   }: EndPointConfig<Params, Body, typeof endPoint.httpMethod>) => {
     try {
       const fetchToUse = options?.customFetchSignature || fetch;
 
       const endPointRequestConfig = {
         ...endPoint.requestConfig,
-        ...requestLevelOptions?.requestConfig,
+        ...requestOptions?.requestConfig,
       };
 
       const response = await fetchToUse(endPoint.path(params), {
@@ -197,7 +198,7 @@ export type EndPointConfig<
    * The parameters for the endpoint
    */
   params: input<Params>;
-  options?: {
+  requestOptions?: {
     requestConfig?: Omit<RequestInit, "body" | "method">;
   };
 } & (HttpMethod extends HttpMethodsWithBody
