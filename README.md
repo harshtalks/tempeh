@@ -20,14 +20,33 @@ Traditionally how you would do that is basically:
 
 Now here you get little to no safety plus it breaks the dry principle. Here's how you can do it in a fully type safe manner.
 
+#### Tempeh is Typescript utility library to manage your routes in a declarative manner
+
+To get started with Tempeh, you need to define a global config. This design pattern is chosen for following reasons:
+
+- Tempeh stores all your routes under the hood to keep track of params and search params and for parsing them on demand.
+- Tempeh also stores all your additional base urls so that you can always decide which url to forward to in a type-safe manner.
+- Tempeh also takes certain configuration props (formatting of zod errors) to make sure your errors are more readable.
+
+Here we define our root schema:
+
 ```tsx
 // Path: src/routes.ts
 
 // You should only have a single `createRoute` constant across your function as this will make sure you do not have same named routes multiple times. It tracks the params internally.
 
-// Some global file named: `global.route.ts`
-const { createRoute } = routeBuilder.getInstance();
+const { createRoute } = routeBuilder.getInstance({
+  additionalBaseUrls: {
+    API: "https://api.example.com",
+  },
+  defaultBaseUrl: "/",
+  formattedValidationErrors: true,
+});
+```
 
+Root config has returned us with a createRouter utility function, this function is what we use to define our individual route configs.
+
+```tsx
 // Importing from `global.route.ts`
 export const WorkspaceRoute = createRoute({
   fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
@@ -35,15 +54,26 @@ export const WorkspaceRoute = createRoute({
   paramsSchema: object({
     workspaceId: string(),
   }),
-  options: { internal: true },
+  baseUrl: "API",
+  searchParamsSchema: object({
+    withOwner: boolean(),
+  }),
 });
 
+console.log(
+  WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } })
+);
+
+// result: https://api.example.com/workspace/123?withOwner=true
+```
+
+```tsx
 // Path: src/index.ts
 // import { WorkspaceRoute } from "./routes.ts";
 
 <Link href={WorkspaceRoute({ workspaceId: "123" })}>
   <Button>Workspace</Button>
-</Link>;
+</Link>
 ```
 
 Or you can use our declarative routing approach as following:
@@ -63,10 +93,7 @@ const getTodo = createEndPoint({
   path: createRoute({
     name: "getTodos",
     fn: ({ todoId }) => `/todos/${todoId}`,
-    options: {
-      internal: false,
-      baseUrl: "https://jsonplaceholder.typicode.com",
-    },
+    baseUrl: "https://jsonplaceholder.typicode.com", // will throw an error if custom baseRoute is not valid url
     paramsSchema: object({ todoId: number() }),
   }),
   SafeResponse: true,

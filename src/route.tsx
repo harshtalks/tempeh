@@ -3,11 +3,43 @@ import {
   useSearchParams as useNextSearchParams,
 } from "next/navigation";
 import queryString from "query-string";
-import { ZodSchema, enum as enum_, input, object, output, string } from "zod";
+import {
+  ZodSchema,
+  boolean,
+  enum as enum_,
+  input,
+  object,
+  output,
+  string,
+} from "zod";
 import { convertURLSearchParamsToObject } from "./utils";
 import Link from "next/link";
 import { ComponentProps } from "react";
 import React from "react";
+import { fromError } from "zod-validation-error";
+
+export type RouteBuilderOptions<TBaseUrls extends {}> = {
+  /**
+   * @name additionalBaseUrls
+   * @type {Object}
+   * @description additionalBaseUrls is an object which contains the base urls which can be used in the routes. It is used to append the base url to the route. It is an optional field.
+   */
+  additionalBaseUrls?: TBaseUrls;
+  /**
+   * @name defaultBaseUrl
+   * @type {string}
+   * @description defaultBaseUrl is the base url which will be appended to the route if the route does not have any base url. It will take any route that you have defined during the instantiation of routeBuilder. It is an optional field.
+   */
+  defaultBaseUrl?: string;
+  /**
+   * @name formattedValidationErrors
+   * @type {boolean}
+   * @description formattedValidationErrors is a boolean which is used to show the formatted validation errors. It is an optional field.
+   */
+  formattedValidationErrors?: boolean;
+};
+
+const urlSchema = string().min(1).url();
 
 export type RouteConfig<
   TParams extends ZodSchema,
@@ -42,10 +74,33 @@ export const routeBuilder = (() => {
 
   // Private function to create the instance
 
-  const buildRouteBuilder = () => {
+  const buildRouteBuilder = <TBaseUrls extends {}>(
+    options?: RouteBuilderOptions<TBaseUrls>
+  ) => {
+    const x: (x: keyof TBaseUrls) => void = (x) => {};
+
     const routes: Record<string, RouteConfig<any, any>> = {};
 
-    const urlSchema = string().min(1).url();
+    const parsedAdditionalBaseUrls =
+      options?.additionalBaseUrls &&
+      Object.entries(options.additionalBaseUrls).reduce((acc, [key, value]) => {
+        const parsedUrls = urlSchema.safeParse(value);
+
+        if (!parsedUrls.success) {
+          throw new Error(
+            `Invalid URL for ${key}: ${fromError(parsedUrls.error).message}`
+          );
+        }
+
+        acc[key] = parsedUrls.data;
+
+        return acc;
+      }, {} as Record<string, string>);
+
+    const defaultBaseUrl = options?.defaultBaseUrl || "/";
+
+    const formattedValidationErrors =
+      options?.formattedValidationErrors || true;
 
     const buildRoute = <
       TParams extends ZodSchema,
@@ -55,14 +110,7 @@ export const routeBuilder = (() => {
       fn: (params: input<TParams>) => string,
       paramSchema: TParams = {} as TParams,
       searchSchema: TSearchParams = {} as TSearchParams,
-      urlOptions:
-        | {
-            internal: true;
-          }
-        | {
-            internal: false;
-            baseUrl: string;
-          }
+      baseUrl?: keyof TBaseUrls | (string & {})
     ): RouteConfig<TParams, TSearchParams> => {
       // check if the route already exists
       if (routes[name]) {
@@ -70,11 +118,57 @@ export const routeBuilder = (() => {
       }
 
       const route: RouteConfig<TParams, TSearchParams> = (params, options) => {
-        let route = fn(params);
+        const parsedDefaultRoute = urlSchema.safeParse(defaultBaseUrl);
 
-        if (!urlOptions.internal) {
-          const baseUrl = new URL(urlSchema.parse(urlOptions.baseUrl));
-          route = new URL(route, baseUrl).toString();
+        const removeTrailingSlashes = (str: string) => str.replace(/\/+$/, "");
+
+        let route = removeTrailingSlashes(fn(params));
+
+        // default route logic
+        if (!parsedDefaultRoute.success) {
+          if (defaultBaseUrl.startsWith("/")) {
+            route = removeTrailingSlashes(defaultBaseUrl).concat(route);
+          } else {
+            throw new Error(
+              "Invalid default base url. It should be a valid url or a relative path starting with /"
+            );
+          }
+        } else {
+          route = new URL(route, parsedDefaultRoute.data).toString();
+        }
+
+        // when alternative route is given
+        if (baseUrl) {
+          if (parsedAdditionalBaseUrls && baseUrl in parsedAdditionalBaseUrls) {
+            const parsedBase = urlSchema.safeParse(
+              parsedAdditionalBaseUrls[baseUrl as string]
+            );
+
+            if (!parsedBase.success) {
+              throw new Error(
+                `Invalid URL for ${baseUrl as string}: ${
+                  formattedValidationErrors
+                    ? fromError(parsedBase.error).message
+                    : parsedBase.error
+                }`
+              );
+            }
+
+            route = new URL(route, parsedBase.data).toString();
+          } else {
+            const parsedBase = urlSchema.safeParse(baseUrl);
+
+            if (!parsedBase.success) {
+              throw new Error(
+                `Invalid URL for ${baseUrl as string}: ${
+                  formattedValidationErrors
+                    ? fromError(parsedBase.error).message
+                    : parsedBase.error
+                }`
+              );
+            }
+            route = new URL(route, parsedBase.data).toString();
+          }
         }
 
         const searchQuery =
@@ -94,7 +188,11 @@ export const routeBuilder = (() => {
 
         if (!result.success) {
           throw new Error(
-            `Invalid params for route ${routeName}: ${result.error}`
+            `Invalid params for route ${routeName}: ${
+              formattedValidationErrors
+                ? fromError(formattedValidationErrors).message
+                : result.error
+            }`
           );
         }
 
@@ -112,7 +210,11 @@ export const routeBuilder = (() => {
 
         if (!result.success) {
           throw new Error(
-            `Invalid search params for route ${routeName}: ${result.error}`
+            `Invalid search params for route ${routeName}: ${
+              formattedValidationErrors
+                ? fromError(formattedValidationErrors).message
+                : result.error
+            }`
           );
         }
 
@@ -125,9 +227,9 @@ export const routeBuilder = (() => {
       route.Link = ({ children, params, searchParams, ...props }) => {
         let route = fn(params);
 
-        if (!urlOptions.internal) {
-          const baseUrl = new URL(urlSchema.parse(urlOptions.baseUrl));
-          route = new URL(route, baseUrl).toString();
+        if (baseUrl) {
+          const base = new URL(urlSchema.parse(baseUrl));
+          route = new URL(route, base).toString();
         }
 
         const searchQuery = searchParams && queryString.stringify(searchParams);
@@ -158,31 +260,6 @@ export const routeBuilder = (() => {
 
       return route;
     };
-
-    /**
-     * @name createRoute
-     * @description
-     * It creates a route with the given name, function, paramsSchema, searchParamsSchema and options. here options can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
-     *
-     * @returns {RouteConfig}
-     *
-     * @example
-     *  export const WorkspaceRoute = createRoute({
-     *    fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
-     *     name: "WorkspaceRoute",
-     *    paramsSchema: object({
-     *      workspaceId: string(),
-     *     }),
-     *     options: { internal: true },
-     *   searchParamsSchema: object({
-     *       withOwner: boolean(),
-     *     }),
-     *  });
-     *
-     * WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } });
-     * result => /workspace/123?withOwner=true
-     *
-     */
 
     const createRoute = <
       TParams extends ZodSchema,
@@ -223,26 +300,26 @@ export const routeBuilder = (() => {
       searchParamsSchema,
 
       /**
-       * @name options
-       * @type {Object}
-       * @description options is an object which can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. baseUrl needs to follow basic url format otherwise it will throw an error.
+       * @name baseUrl
+       * @type string
+       * @description baseUrl is the base url which will be appended to the route. It will take any route that you have defined during the instantiation of routeBuilder.
        */
-      options,
-    }: CreateRouteConfig<TParams, TSearchParams>) => {
-      return buildRoute(name, fn, paramsSchema, searchParamsSchema, options);
+      baseUrl,
+    }: CreateRouteConfig<TParams, TSearchParams, TBaseUrls>) => {
+      return buildRoute(name, fn, paramsSchema, searchParamsSchema, baseUrl);
     };
 
     return { createRoute };
   };
 
   return {
-    getInstance: () => {
+    getInstance: <T extends {}>(options?: RouteBuilderOptions<T>) => {
       // If instance is null, create a new instance
       if (!instance) {
-        instance = buildRouteBuilder();
+        instance = buildRouteBuilder(options);
       }
       // Return the instance
-      return instance;
+      return instance as ReturnType<typeof buildRouteBuilder<T>>;
     },
   };
 })();
@@ -274,7 +351,8 @@ export const routeBuilder = (() => {
 
 export type CreateRouteConfig<
   UrlParams extends ZodSchema,
-  SearchParams extends ZodSchema
+  SearchParams extends ZodSchema,
+  TBaseUrls extends {}
 > = {
   /**
    * @name name
@@ -309,16 +387,32 @@ export type CreateRouteConfig<
   searchParamsSchema?: SearchParams;
 
   /**
-   * @name options
-   * @type {Object}
-   * @description options is an object which can be internal or external. If it is internal, it will not append the base url to the route. If it is external, it will append the base url to the route which you will have to provide. baseUrl needs to follow basic url format otherwise it will throw an error.
+   * @name baseUrl
+   * @type string
+   * @description baseUrl is the base url which will be appended to the route. It will take any route that you have defined during the instantiation of routeBuilder.
    */
-  options:
-    | {
-        internal: true;
-      }
-    | {
-        internal: false;
-        baseUrl: string;
-      };
+  baseUrl?: keyof TBaseUrls | (string & {});
 };
+
+const { createRoute } = routeBuilder.getInstance({
+  additionalBaseUrls: {
+    APP: "https://app.com",
+  },
+  formattedValidationErrors: false,
+});
+
+export const WorkspaceRoute = createRoute({
+  fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
+  name: "WorkspaceRoute",
+  paramsSchema: object({
+    workspaceId: string(),
+  }),
+  searchParamsSchema: object({
+    withOwner: boolean(),
+  }),
+  baseUrl: "APP",
+});
+
+console.log(
+  WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } })
+);
