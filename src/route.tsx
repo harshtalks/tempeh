@@ -32,7 +32,7 @@ const urlSchema = union([
   string().url(),
   string().regex(/^\/(?!\/)([\w\-\/.%]+)?/),
 ]).transform((value) => {
-  if (value.startsWith("/")) {
+  if (value.startsWith("/") && value.length > 1) {
     value = removeTrailingSlashes(value);
   }
   return value;
@@ -276,8 +276,6 @@ export const routeBuilder = (() => {
 
         const searchQuery =
           options?.search && queryString.stringify(options.search);
-
-        console.log("got it");
 
         const link = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
 
