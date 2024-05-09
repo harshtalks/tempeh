@@ -317,6 +317,10 @@ export const routeBuilder = (() => {
       // If instance is null, create a new instance
       if (!instance) {
         instance = buildRouteBuilder(options);
+      } else {
+        throw new Error(
+          "RouteBuilder instance already exists. You can only create one instance of RouteBuilder per application"
+        );
       }
       // Return the instance
       return instance as ReturnType<typeof buildRouteBuilder<T>>;
@@ -394,25 +398,4 @@ export type CreateRouteConfig<
   baseUrl?: keyof TBaseUrls | (string & {});
 };
 
-const { createRoute } = routeBuilder.getInstance({
-  additionalBaseUrls: {
-    APP: "https://app.com",
-  },
-  formattedValidationErrors: false,
-});
-
-export const WorkspaceRoute = createRoute({
-  fn: ({ workspaceId }) => `/workspace/${workspaceId}`,
-  name: "WorkspaceRoute",
-  paramsSchema: object({
-    workspaceId: string(),
-  }),
-  searchParamsSchema: object({
-    withOwner: boolean(),
-  }),
-  baseUrl: "APP",
-});
-
-console.log(
-  WorkspaceRoute({ workspaceId: "123" }, { search: { withOwner: true } })
-);
+const { createRoute } = routeBuilder.getInstance({});
