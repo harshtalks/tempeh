@@ -6,9 +6,6 @@ export type ServerActionAccept = "form" | "json";
 // error
 export type ErrorInferenceObject = Record<string, any>;
 
-// api context store
-export type APIContextStore = {};
-
 // promise or not a promise
 export type MaybePromise<T> = T | Promise<T>;
 
@@ -71,8 +68,5 @@ export type DefinedSeverAction<
 // handler
 export type ActionHandler<TInputSchema, TOutput> =
   TInputSchema extends z.ZodType
-    ? (
-        input: z.input<TInputSchema>,
-        context: APIContextStore
-      ) => MaybePromise<TOutput>
-    : (input: any, context: APIContextStore) => MaybePromise<TOutput>;
+    ? (input: z.input<TInputSchema>) => MaybePromise<TOutput>
+    : (input: any) => MaybePromise<TOutput>;

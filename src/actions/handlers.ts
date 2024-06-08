@@ -11,10 +11,10 @@ export const jsonServerHandler = <
   handler: ActionHandler<TInputSchema, TOutput>,
   inputSchema?: TInputSchema
 ) => {
-  return async (unsanitisedInput: unknown): Promise<Awaited<TOutput>> => {
+  return async (unParsedInput: unknown): Promise<Awaited<TOutput>> => {
     // if input is type of FormData
 
-    if (unsanitisedInput instanceof FormData) {
+    if (unParsedInput instanceof FormData) {
       throw new ServerActionError({
         message: "You can only pass JSON data to this server action",
         code: "UNSUPPORTED_MEDIA_TYPE",
@@ -22,16 +22,16 @@ export const jsonServerHandler = <
     }
 
     if (!inputSchema) {
-      return await handler(unsanitisedInput, {});
+      return await handler(unParsedInput);
     }
 
-    const parsedInput = await inputSchema.safeParseAsync(unsanitisedInput);
+    const parsedInput = await inputSchema.safeParseAsync(unParsedInput);
 
     if (!parsedInput.success) {
       throw new ServerActionInputError(parsedInput.error.issues);
     }
 
-    return await handler(parsedInput.data, {});
+    return await handler(parsedInput.data);
   };
 };
 
@@ -42,8 +42,8 @@ export const formServerHandler = <
   handler: ActionHandler<TInputSchema, TOutput>,
   inputSchema?: TInputSchema
 ) => {
-  return async (unsanitisedInput: unknown): Promise<Awaited<TOutput>> => {
-    if (!(unsanitisedInput instanceof FormData)) {
+  return async (unParsedInput: unknown): Promise<Awaited<TOutput>> => {
+    if (!(unParsedInput instanceof FormData)) {
       throw new ServerActionError({
         code: "UNSUPPORTED_MEDIA_TYPE",
         message: "you can only pass form data to this server action",
@@ -51,17 +51,17 @@ export const formServerHandler = <
     }
 
     if (!(inputSchema instanceof z.ZodObject))
-      return await handler(unsanitisedInput, {});
+      return await handler(unParsedInput);
 
     const parsed = await inputSchema.safeParseAsync(
-      formDataToObject(unsanitisedInput, inputSchema)
+      formDataToObject(unParsedInput, inputSchema)
     );
 
     if (!parsed.success) {
       throw new ServerActionInputError(parsed.error.issues);
     }
 
-    return await handler(parsed.data, {});
+    return await handler(parsed.data);
   };
 };
 
