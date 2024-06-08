@@ -200,18 +200,3 @@ export type EndPointConfig<
   : {
       body?: never;
     });
-
-const { createRoute } = routeBuilder.getInstance();
-
-const fetcherx = createEndPoint({
-  httpMethod: "POST",
-  bodySchema: object({
-    name: string(),
-  }),
-  path: createRoute({
-    name: "/",
-    fn: () => "/",
-    paramsSchema: object({}),
-  }),
-  SafeResponse: false,
-});
