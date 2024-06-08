@@ -6,10 +6,8 @@ import queryString from "query-string";
 import {
   ZodSchema,
   any,
-  boolean,
   enum as enum_,
   input,
-  object,
   output,
   string,
   union,
@@ -58,6 +56,8 @@ export type RouteBuilderOptions<TBaseUrls extends {}> = {
    */
   formattedValidationErrors?: boolean;
 };
+
+type BaseUrls<T extends {}> = keyof T | (string & {});
 
 export type RouteConfig<
   TParams extends ZodSchema,
@@ -449,5 +449,5 @@ export type CreateRouteConfig<
    * @type string
    * @description baseUrl is the base url which will be appended to the route. It will take any route that you have defined during the instantiation of routeBuilder.
    */
-  baseUrl?: keyof TBaseUrls | (string & {});
+  baseUrl?: BaseUrls<TBaseUrls>;
 };

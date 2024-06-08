@@ -1,16 +1,5 @@
-import {
-  TypeOf,
-  ZodError,
-  ZodSchema,
-  array,
-  boolean,
-  input,
-  number,
-  object,
-  output,
-  string,
-} from "zod";
-import { RouteConfig } from "./route.js";
+import { ZodError, ZodSchema, input, object, output, string } from "zod";
+import { RouteConfig, routeBuilder } from "./route.js";
 import { fromError } from "zod-validation-error";
 import {
   StatusCodes,
@@ -125,14 +114,14 @@ export const createEndPoint = <
   return async ({
     params,
     body,
-    requestOptions,
+    requestConfig,
   }: EndPointConfig<Params, Body, typeof endPoint.httpMethod>) => {
     try {
       const fetchToUse = options?.customFetchSignature || fetch;
 
       const endPointRequestConfig = {
         ...endPoint.requestConfig,
-        ...requestOptions?.requestConfig,
+        ...requestConfig,
       };
 
       const response = await fetchToUse(endPoint.path(params), {
@@ -198,9 +187,7 @@ export type EndPointConfig<
    * The parameters for the endpoint
    */
   params: input<Params>;
-  requestOptions?: {
-    requestConfig?: Omit<RequestInit, "body" | "method">;
-  };
+  requestConfig?: Omit<RequestInit, "body" | "method">;
 } & (HttpMethod extends HttpMethodsWithBody
   ? {
       /**
@@ -213,3 +200,18 @@ export type EndPointConfig<
   : {
       body?: never;
     });
+
+const { createRoute } = routeBuilder.getInstance();
+
+const fetcherx = createEndPoint({
+  httpMethod: "POST",
+  bodySchema: object({
+    name: string(),
+  }),
+  path: createRoute({
+    name: "/",
+    fn: () => "/",
+    paramsSchema: object({}),
+  }),
+  SafeResponse: false,
+});
