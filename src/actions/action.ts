@@ -16,7 +16,9 @@ import * as z from "zod";
 export const createAction = <
   TAccept extends ServerActionAccept,
   TOutput,
-  TInputSchema extends InputSchema<TAccept> | undefined = TAccept extends "form"
+  TInputSchema extends
+    | InputSchema<ServerActionAccept>
+    | undefined = TAccept extends "form"
     ? // If `input` is omitted, default to `FormData` for forms and `any` for JSON.
       z.ZodType<FormData>
     : undefined
@@ -35,10 +37,11 @@ export const createAction = <
       : jsonServerHandler(handler, inputSchema);
 
   Object.assign(serverHandler, {
-    safe: async (unParsedInput: unknown) => {
-      return callSafely(() => serverHandler(unParsedInput));
+    safe: async (unparsedInput: unknown) => {
+      return callSafely(() => serverHandler(unparsedInput));
     },
   });
+
   return serverHandler as DefinedSeverAction<TAccept, TInputSchema, TOutput>;
 };
 

@@ -1,7 +1,7 @@
 import * as z from "zod";
 import { ServerActionError } from "./errors";
 // our server action can take input schema as either "form" or "json"
-export type ServerActionAccept = "form" | "json";
+export type ServerActionAccept = "json" | "form";
 
 // error
 export type ErrorInferenceObject = Record<string, any>;
@@ -49,9 +49,9 @@ export type DefinedSeverAction<
   TInputSchema extends InputSchema<TAccept> | undefined,
   TOutput
 > = TInputSchema extends z.ZodType
-  ? (
+  ? ((
       input: TAccept extends "form" ? FormData : z.input<TInputSchema>
-    ) => Promise<Awaited<TOutput>> & {
+    ) => Promise<Awaited<TOutput>>) & {
       safe: (
         input: TAccept extends "form" ? FormData : z.input<TInputSchema>
       ) => Promise<
@@ -63,7 +63,9 @@ export type DefinedSeverAction<
         >
       >;
     }
-  : () => Promise<SafeResult<never, Awaited<TOutput>>>;
+  : ((input?: any) => Promise<Awaited<TOutput>>) & {
+      safe: (input?: any) => Promise<SafeResult<never, Awaited<TOutput>>>;
+    };
 
 // handler
 export type ActionHandler<TInputSchema, TOutput> =

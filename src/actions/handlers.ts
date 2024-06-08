@@ -11,10 +11,10 @@ export const jsonServerHandler = <
   handler: ActionHandler<TInputSchema, TOutput>,
   inputSchema?: TInputSchema
 ) => {
-  return async (unParsedInput: unknown): Promise<Awaited<TOutput>> => {
+  return async (unparsedInput: unknown): Promise<Awaited<TOutput>> => {
     // if input is type of FormData
 
-    if (unParsedInput instanceof FormData) {
+    if (unparsedInput instanceof FormData) {
       throw new ServerActionError({
         message: "You can only pass JSON data to this server action",
         code: "UNSUPPORTED_MEDIA_TYPE",
@@ -22,10 +22,10 @@ export const jsonServerHandler = <
     }
 
     if (!inputSchema) {
-      return await handler(unParsedInput);
+      return await handler(unparsedInput);
     }
 
-    const parsedInput = await inputSchema.safeParseAsync(unParsedInput);
+    const parsedInput = await inputSchema.safeParseAsync(unparsedInput);
 
     if (!parsedInput.success) {
       throw new ServerActionInputError(parsedInput.error.issues);
@@ -42,8 +42,8 @@ export const formServerHandler = <
   handler: ActionHandler<TInputSchema, TOutput>,
   inputSchema?: TInputSchema
 ) => {
-  return async (unParsedInput: unknown): Promise<Awaited<TOutput>> => {
-    if (!(unParsedInput instanceof FormData)) {
+  return async (unparsedInput: unknown): Promise<Awaited<TOutput>> => {
+    if (!(unparsedInput instanceof FormData)) {
       throw new ServerActionError({
         code: "UNSUPPORTED_MEDIA_TYPE",
         message: "you can only pass form data to this server action",
@@ -51,10 +51,10 @@ export const formServerHandler = <
     }
 
     if (!(inputSchema instanceof z.ZodObject))
-      return await handler(unParsedInput);
+      return await handler(unparsedInput);
 
     const parsed = await inputSchema.safeParseAsync(
-      formDataToObject(unParsedInput, inputSchema)
+      formDataToObject(unparsedInput, inputSchema)
     );
 
     if (!parsed.success) {
