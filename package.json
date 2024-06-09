@@ -3,7 +3,7 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "version": "2.3.9",
+  "version": "2.4.0",
   "description": "type safe route builder with search params, params hook and wrapper fetcher for Next.js app directory.",
   "type": "module",
   "devDependencies": {
@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@types/react": "^18.2.74",
+    "build-url-ts": "^6.1.7",
     "next": "^14.1.4",
     "query-string": "^8.2.0",
     "react": "^18.2.0",

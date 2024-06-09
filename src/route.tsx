@@ -17,6 +17,7 @@ import Link from "next/link";
 import { ComponentProps } from "react";
 import React from "react";
 import { fromError } from "zod-validation-error";
+import { buildUrl, IQueryParams } from "build-url-ts";
 
 const trimSlashes = (str: string) =>
   str
@@ -363,7 +364,45 @@ export const routeBuilder = (() => {
       return route;
     };
 
-    return { createRoute };
+    const Navigate = ({
+      base,
+      path,
+      queryParams,
+      disableCSV,
+      hash,
+      children,
+      lowerCase,
+      ...props
+    }: Omit<ComponentProps<typeof Link>, "href"> & {
+      base: keyof TBaseUrls;
+      path?: string;
+      queryParams?: IQueryParams;
+      disableCSV?: boolean;
+      hash?: string;
+      lowerCase?: boolean;
+    }) => {
+      const baseUrl = parsedAdditionalBaseUrls?.[base as string];
+
+      if (!baseUrl) throw new Error("Invalid Base URL");
+
+      const url = buildUrl(baseUrl, {
+        path,
+        queryParams,
+        disableCSV,
+        hash,
+        lowerCase,
+      });
+
+      if (!url) throw new Error("Invalid URL for given " + baseUrl);
+
+      return (
+        <Link {...props} href={url}>
+          {children}
+        </Link>
+      );
+    };
+
+    return { createRoute, Navigate };
   };
 
   return {
