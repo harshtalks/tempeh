@@ -2,6 +2,10 @@
 
 Docs: https://tempeh-docs.vercel.app
 
+#### Important
+
+Version `3.0.0` is the current stable version
+
 ## Typesafe server actions support
 
 https://tempeh-docs.vercel.app/server-actions
