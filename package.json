@@ -3,7 +3,7 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "type safe route builder with search params, params hook and wrapper fetcher for Next.js app directory.",
   "type": "module",
   "devDependencies": {
@@ -48,5 +48,8 @@
   "publishConfig": {
     "access": "public"
   },
-  "files": ["dist/", "src/*.ts"]
+  "files": [
+    "dist/",
+    "src/*.ts"
+  ]
 }

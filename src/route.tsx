@@ -11,6 +11,8 @@ import {
   output,
   string,
   union,
+  ZodError,
+  object,
 } from "zod";
 import { convertURLSearchParamsToObject } from "./utils";
 import Link from "next/link";
@@ -60,6 +62,27 @@ export type RouteBuilderOptions<TBaseUrls extends {}> = {
 
 type BaseUrls<T extends {}> = keyof T | (string & {});
 
+type RouteLink<TParams extends ZodSchema, TSearchParams extends ZodSchema> = (
+  props: Omit<ComponentProps<typeof Link>, "href"> & {
+    params: input<TParams>;
+    searchParams?: input<TSearchParams>;
+  }
+) => JSX.Element;
+
+type SafeParamsResult<T> =
+  | {
+      success: true;
+      data: T;
+    }
+  | {
+      success: false;
+      error: ZodError;
+    };
+
+/**
+ * @name RouteConfig
+ * @description RouteConfig is a function which takes an object with name, fn, paramsSchema, searchParamsSchema and options. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
+ */
 export type RouteConfig<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema
@@ -67,14 +90,11 @@ export type RouteConfig<
   (p: input<TParams>, options?: { search?: input<TSearchParams> }): string;
   useParams: () => output<TParams>;
   useSearchParams: () => output<TSearchParams>;
+  useSafeParams: () => SafeParamsResult<output<TParams>>;
+  useSafeSearchParams: () => SafeParamsResult<output<TSearchParams>>;
   params: output<TParams>;
   searchParams: output<TSearchParams>;
-  Link: (
-    props: Omit<ComponentProps<typeof Link>, "href"> & {
-      params: input<TParams>;
-      searchParams?: input<TSearchParams>;
-    }
-  ) => JSX.Element;
+  Link: RouteLink<TParams, TSearchParams>;
 };
 
 /**
@@ -285,7 +305,7 @@ export const routeBuilder = (() => {
 
       routes[name] = route;
 
-      route.useParams = (): output<TParams> => {
+      const useGetParams = () => {
         const routeName =
           Object.entries(routes).find(([key, value]) => value === route)?.[0] ||
           ("Invalid Route" as never);
@@ -305,7 +325,24 @@ export const routeBuilder = (() => {
         return result.data;
       };
 
-      route.useSearchParams = (): output<TSearchParams> => {
+      route.useParams = (): output<TParams> => {
+        return useGetParams();
+      };
+
+      route.useSafeParams = (): SafeParamsResult<output<TParams>> => {
+        try {
+          const output = useGetParams();
+          return { data: output, success: true };
+        } catch (err) {
+          if (err instanceof ZodError) {
+            return { success: false, error: err };
+          } else {
+            throw err;
+          }
+        }
+      };
+
+      const useGetSearchParams = () => {
         const routeName =
           Object.entries(routes).find(([key, value]) => value === route)?.[0] ||
           ("Invalid Route" as never);
@@ -327,6 +364,25 @@ export const routeBuilder = (() => {
         }
 
         return result.data;
+      };
+
+      route.useSearchParams = (): output<TSearchParams> => {
+        return useGetSearchParams();
+      };
+
+      route.useSafeSearchParams = (): SafeParamsResult<
+        output<TSearchParams>
+      > => {
+        try {
+          const output = useGetSearchParams();
+          return { data: output, success: true };
+        } catch (err) {
+          if (err instanceof ZodError) {
+            return { success: false, error: err };
+          } else {
+            throw err;
+          }
+        }
       };
 
       route.params = undefined as output<TParams>;
@@ -381,7 +437,13 @@ export const routeBuilder = (() => {
       hash?: string;
       lowerCase?: boolean;
     }) => {
-      const baseUrl = parsedAdditionalBaseUrls?.[base as string];
+      if (!parsedAdditionalBaseUrls) {
+        throw new Error(
+          "No Additional Base URLs provided. You need to provide additional base URLs to use Navigate"
+        );
+      }
+
+      const baseUrl = parsedAdditionalBaseUrls[base as string];
 
       if (!baseUrl) throw new Error("Invalid Base URL");
 
