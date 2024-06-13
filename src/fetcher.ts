@@ -163,13 +163,9 @@ export const createEndPoint = <
       return responseData as unknown as output<Response>;
     } catch (err) {
       if (err instanceof ZodError)
-        throw new Error(
-          options?.prettierValidationError
-            ? fromError(err).message
-            : err.message
-        );
+        throw options?.prettierValidationError ? fromError(err) : err;
       else if (err instanceof Error) {
-        throw new Error(err.message);
+        throw err;
       } else {
         throw new Error("An unknown error occurred. Please try again later.");
       }

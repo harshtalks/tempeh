@@ -12,13 +12,15 @@ import {
   string,
   union,
   ZodError,
-  object,
 } from "zod";
 import { convertURLSearchParamsToObject } from "./utils";
 import Link from "next/link";
 import { ComponentProps } from "react";
 import React from "react";
-import { fromError } from "zod-validation-error";
+import {
+  fromError,
+  ValidationError as FormattedValidationError,
+} from "zod-validation-error";
 import { buildUrl, IQueryParams } from "build-url-ts";
 
 const trimSlashes = (str: string) =>
@@ -74,10 +76,18 @@ type SafeParamsResult<T> =
       success: true;
       data: T;
     }
-  | {
+  | ({
       success: false;
-      error: ZodError;
-    };
+    } & (
+      | {
+          isSchemaError: true;
+          error: ZodError | FormattedValidationError;
+        }
+      | {
+          isSchemaError: false;
+          error: Error;
+        }
+    ));
 
 /**
  * @name RouteConfig
@@ -124,11 +134,9 @@ export const routeBuilder = (() => {
         const parsedUrls = urlSchema.safeParse(value);
 
         if (!parsedUrls.success) {
-          throw new Error(
-            `Invalid Base URL for ${key}: ${
-              fromError(parsedUrls.error).message
-            }`
-          );
+          throw fromError(parsedUrls.error, {
+            prefix: `Invalid Base URL for ${key}`,
+          });
         }
 
         acc[key] = parsedUrls.data;
@@ -196,13 +204,11 @@ export const routeBuilder = (() => {
         const validPathname = urlSchema.safeParse(pathname);
 
         if (!validPathname.success) {
-          throw new Error(
-            `Invalid pathname ${pathname} for route ${name}: ${
-              formattedValidationErrors
-                ? fromError(validPathname.error).message
-                : validPathname.error
-            }`
-          );
+          throw formattedValidationErrors
+            ? fromError(validPathname.error, {
+                prefix: `Invalid pathname ${pathname} for route ${name}`,
+              })
+            : validPathname.error;
         }
 
         // routing logic starts here:
@@ -235,13 +241,15 @@ export const routeBuilder = (() => {
             const parsedBase = urlSchema.safeParse(baseUrl);
 
             if (!parsedBase.success) {
-              throw new Error(
-                `Invalid Base URL ${baseUrl as string} for route ${name}: ${
-                  formattedValidationErrors
-                    ? fromError(parsedBase.error).message
-                    : parsedBase.error
-                }`
-              );
+              const err = formattedValidationErrors
+                ? fromError(parsedBase.error, {
+                    prefix: `Invalid Base URL ${
+                      baseUrl as string
+                    } for route ${name}`,
+                  })
+                : parsedBase.error;
+
+              throw err;
             }
 
             if (parsedBase.data.startsWith("/")) {
@@ -263,13 +271,13 @@ export const routeBuilder = (() => {
           const parsedDefaultRoute = urlSchema.safeParse(defaultBaseUrl);
 
           if (!parsedDefaultRoute.success) {
-            throw new Error(
-              `Invalid Base URL ${baseUrl as string} for route ${name}: ${
-                formattedValidationErrors
-                  ? fromError(parsedDefaultRoute.error).message
-                  : parsedDefaultRoute.error
-              }`
-            );
+            throw formattedValidationErrors
+              ? fromError(parsedDefaultRoute.error, {
+                  prefix: `Invalid Base URL ${
+                    baseUrl as string
+                  } for route ${name}`,
+                })
+              : parsedDefaultRoute.error;
           }
 
           if (parsedDefaultRoute.data.startsWith("/")) {
@@ -313,13 +321,11 @@ export const routeBuilder = (() => {
         const result = paramsSchema.safeParse(useNextParams());
 
         if (!result.success) {
-          throw new Error(
-            `Invalid params for route ${routeName}: ${
-              formattedValidationErrors
-                ? fromError(formattedValidationErrors).message
-                : result.error
-            }`
-          );
+          formattedValidationErrors
+            ? fromError(formattedValidationErrors, {
+                prefix: `Invalid params for route ${routeName} `,
+              })
+            : result.error;
         }
 
         return result.data;
@@ -334,8 +340,13 @@ export const routeBuilder = (() => {
           const output = useGetParams();
           return { data: output, success: true };
         } catch (err) {
-          if (err instanceof ZodError) {
-            return { success: false, error: err };
+          if (
+            err instanceof ZodError ||
+            err instanceof FormattedValidationError
+          ) {
+            return { success: false, isSchemaError: true, error: err };
+          } else if (err instanceof Error) {
+            return { success: false, isSchemaError: false, error: err };
           } else {
             throw err;
           }
@@ -354,13 +365,11 @@ export const routeBuilder = (() => {
         );
 
         if (!result.success) {
-          throw new Error(
-            `Invalid search params for route ${routeName}: ${
-              formattedValidationErrors
-                ? fromError(formattedValidationErrors).message
-                : result.error
-            }`
-          );
+          throw formattedValidationErrors
+            ? fromError(formattedValidationErrors, {
+                prefix: `Invalid search params for route ${routeName}`,
+              })
+            : result.error;
         }
 
         return result.data;
@@ -377,8 +386,13 @@ export const routeBuilder = (() => {
           const output = useGetSearchParams();
           return { data: output, success: true };
         } catch (err) {
-          if (err instanceof ZodError) {
-            return { success: false, error: err };
+          if (
+            err instanceof ZodError ||
+            err instanceof FormattedValidationError
+          ) {
+            return { success: false, isSchemaError: true, error: err };
+          } else if (err instanceof Error) {
+            return { success: false, isSchemaError: false, error: err };
           } else {
             throw err;
           }
