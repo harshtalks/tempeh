@@ -1,6 +1,6 @@
 import { ZodError, ZodSchema, input, object, output, string } from "zod";
 import { RouteConfig, routeBuilder } from "./route.js";
-import { fromError } from "zod-validation-error";
+import { fromZodError } from "zod-validation-error";
 import {
   StatusCodes,
   httpStatusCodes,
@@ -163,7 +163,7 @@ export const createEndPoint = <
       return responseData as unknown as output<Response>;
     } catch (err) {
       if (err instanceof ZodError)
-        throw options?.prettierValidationError ? fromError(err) : err;
+        throw options?.prettierValidationError ? fromZodError(err) : err;
       else if (err instanceof Error) {
         throw err;
       } else {

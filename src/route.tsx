@@ -18,7 +18,7 @@ import Link from "next/link";
 import { ComponentProps } from "react";
 import React from "react";
 import {
-  fromError,
+  fromZodError,
   ValidationError as FormattedValidationError,
 } from "zod-validation-error";
 import { buildUrl, IQueryParams } from "build-url-ts";
@@ -113,7 +113,6 @@ export type RouteConfig<
  * Make sure you call this function only once in your application as it tracks the routes internally for the search params and params. If you call it multiple times, You will loose the types on many places.
  * @returns {createRoute}
  * @example
- * // file name: global.route.ts
  * const createRoute = routeBuilder();
  */
 
@@ -134,7 +133,7 @@ export const routeBuilder = (() => {
         const parsedUrls = urlSchema.safeParse(value);
 
         if (!parsedUrls.success) {
-          throw fromError(parsedUrls.error, {
+          throw fromZodError(parsedUrls.error, {
             prefix: `Invalid Base URL for ${key}`,
           });
         }
@@ -205,7 +204,7 @@ export const routeBuilder = (() => {
 
         if (!validPathname.success) {
           throw formattedValidationErrors
-            ? fromError(validPathname.error, {
+            ? fromZodError(validPathname.error, {
                 prefix: `Invalid pathname ${pathname} for route ${name}`,
               })
             : validPathname.error;
@@ -242,7 +241,7 @@ export const routeBuilder = (() => {
 
             if (!parsedBase.success) {
               const err = formattedValidationErrors
-                ? fromError(parsedBase.error, {
+                ? fromZodError(parsedBase.error, {
                     prefix: `Invalid Base URL ${
                       baseUrl as string
                     } for route ${name}`,
@@ -272,7 +271,7 @@ export const routeBuilder = (() => {
 
           if (!parsedDefaultRoute.success) {
             throw formattedValidationErrors
-              ? fromError(parsedDefaultRoute.error, {
+              ? fromZodError(parsedDefaultRoute.error, {
                   prefix: `Invalid Base URL ${
                     baseUrl as string
                   } for route ${name}`,
@@ -321,8 +320,8 @@ export const routeBuilder = (() => {
         const result = paramsSchema.safeParse(useNextParams());
 
         if (!result.success) {
-          formattedValidationErrors
-            ? fromError(formattedValidationErrors, {
+          throw formattedValidationErrors
+            ? fromZodError(result.error, {
                 prefix: `Invalid params for route ${routeName} `,
               })
             : result.error;
@@ -366,7 +365,7 @@ export const routeBuilder = (() => {
 
         if (!result.success) {
           throw formattedValidationErrors
-            ? fromError(formattedValidationErrors, {
+            ? fromZodError(result.error, {
                 prefix: `Invalid search params for route ${routeName}`,
               })
             : result.error;
