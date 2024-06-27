@@ -22,6 +22,11 @@ import {
   ValidationError as FormattedValidationError,
 } from "zod-validation-error";
 import { buildUrl, IQueryParams } from "build-url-ts";
+import {
+  NavigateOptions,
+  PrefetchOptions,
+  AppRouterInstance,
+} from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 const trimSlashes = (str: string) =>
   str
@@ -68,6 +73,7 @@ type RouteLink<TParams extends ZodSchema, TSearchParams extends ZodSchema> = (
   props: Omit<ComponentProps<typeof Link>, "href"> & {
     params: input<TParams>;
     searchParams?: input<TSearchParams>;
+    searchParamsOptions?: queryString.StringifyOptions;
   }
 ) => JSX.Element;
 
@@ -97,7 +103,13 @@ export type RouteConfig<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema
 > = {
-  (p: input<TParams>, options?: { search?: input<TSearchParams> }): string;
+  (
+    p: input<TParams>,
+    options?: {
+      search?: input<TSearchParams>;
+      searchParamsOptions?: queryString.StringifyOptions;
+    }
+  ): string;
   useParams: () => output<TParams>;
   useSearchParams: () => output<TSearchParams>;
   useSafeParams: () => SafeParamsResult<output<TParams>>;
@@ -105,6 +117,35 @@ export type RouteConfig<
   params: output<TParams>;
   searchParams: output<TSearchParams>;
   Link: RouteLink<TParams, TSearchParams>;
+  useRouter: (useNextRouterInstance: () => AppRouterInstance) => Omit<
+    AppRouterInstance,
+    "push" | "replace" | "prefetch"
+  > & {
+    push: (
+      routeConfig: {
+        params: input<TParams>;
+        searchParams?: input<TSearchParams>;
+      },
+      navigationOptions?: NavigateOptions,
+      searchParamsOptions?: queryString.StringifyOptions
+    ) => void;
+    replace: (
+      routeConfig: {
+        params: input<TParams>;
+        searchParams?: input<TSearchParams>;
+      },
+      navigationOptions?: NavigateOptions,
+      searchParamsOptions?: queryString.StringifyOptions
+    ) => void;
+    prefetch: (
+      routeConfig: {
+        params: input<TParams>;
+        searchParams?: input<TSearchParams>;
+      },
+      navigationOptions?: PrefetchOptions,
+      searchParamsOptions?: queryString.StringifyOptions
+    ) => void;
+  };
 };
 
 /**
@@ -300,10 +341,37 @@ export const routeBuilder = (() => {
       };
 
       const route: RouteConfig<TParams, TSearchParams> = (params, options) => {
+        // check if the params are parsed successfully.
+
+        const parsedParams = paramsSchema.safeParse(params);
+
+        if (!parsedParams.success) {
+          throw formattedValidationErrors
+            ? fromZodError(parsedParams.error, {
+                prefix: `Invalid Params passed to route: `,
+              })
+            : parsedParams.error;
+        }
+
+        if (options?.search && searchParamsSchema) {
+          const parsedSearchParams = searchParamsSchema.safeParse(
+            options.search
+          );
+
+          if (!parsedSearchParams.success) {
+            throw formattedValidationErrors
+              ? fromZodError(parsedSearchParams.error, {
+                  prefix: `Invalid Search Params passed to route: `,
+                })
+              : parsedParams.error;
+          }
+        }
+
         const route = getRoute(fn(params));
 
         const searchQuery =
-          options?.search && queryString.stringify(options.search);
+          options?.search &&
+          queryString.stringify(options.search, options.searchParamsOptions);
 
         const link = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
 
@@ -402,9 +470,33 @@ export const routeBuilder = (() => {
       route.searchParams = undefined as output<TSearchParams>;
 
       route.Link = ({ children, params, searchParams, ...props }) => {
+        const parsedParams = paramsSchema.safeParse(params);
+
+        if (!parsedParams.success) {
+          throw formattedValidationErrors
+            ? fromZodError(parsedParams.error, {
+                prefix: `Invalid Params passed to route: `,
+              })
+            : parsedParams.error;
+        }
+
+        if (searchParams && searchParamsSchema) {
+          const parsedSearchParams = searchParamsSchema.safeParse(searchParams);
+
+          if (!parsedSearchParams.success) {
+            throw formattedValidationErrors
+              ? fromZodError(parsedSearchParams.error, {
+                  prefix: `Invalid Search Params passed to route: `,
+                })
+              : parsedParams.error;
+          }
+        }
+
         const route = getRoute(fn(params));
 
-        const searchQuery = searchParams && queryString.stringify(searchParams);
+        const searchQuery =
+          searchParams &&
+          queryString.stringify(searchParams, props.searchParamsOptions);
 
         const href = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
         return (
@@ -429,6 +521,165 @@ export const routeBuilder = (() => {
           );
         },
       });
+
+      route.useRouter = (useNextRouterInstance: () => AppRouterInstance) => {
+        const router = useNextRouterInstance();
+
+        const push = (
+          routeConfig: {
+            params: input<TParams>;
+            searchParams?: input<TSearchParams>;
+          },
+          navigationOptions?: NavigateOptions,
+          searchParamsOptions?: queryString.StringifyOptions
+        ): void => {
+          // check if params are valid.
+          // check if the params are parsed successfully.
+
+          const parsedParams = paramsSchema.safeParse(routeConfig.params);
+
+          if (!parsedParams.success) {
+            throw formattedValidationErrors
+              ? fromZodError(parsedParams.error, {
+                  prefix: `Invalid Params passed to route: `,
+                })
+              : parsedParams.error;
+          }
+
+          if (routeConfig.searchParams && searchParamsSchema) {
+            const parsedSearchParams = searchParamsSchema.safeParse(
+              routeConfig.searchParams
+            );
+
+            if (!parsedSearchParams.success) {
+              throw formattedValidationErrors
+                ? fromZodError(parsedSearchParams.error, {
+                    prefix: `Invalid Search Params passed to route: `,
+                  })
+                : parsedParams.error;
+            }
+          }
+
+          // we have successfully passed the check here
+
+          const route = getRoute(fn(routeConfig.params));
+
+          const searchQuery =
+            routeConfig.searchParams &&
+            queryString.stringify(
+              routeConfig.searchParams,
+              searchParamsOptions
+            );
+
+          const href = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
+
+          return router.push(href, navigationOptions);
+        };
+
+        const replace = (
+          routeConfig: {
+            params: input<TParams>;
+            searchParams?: input<TSearchParams>;
+          },
+          navigationOptions?: NavigateOptions,
+          searchParamsOptions?: queryString.StringifyOptions
+        ): void => {
+          // check if params are valid.
+          // check if the params are parsed successfully.
+
+          const parsedParams = paramsSchema.safeParse(routeConfig.params);
+
+          if (!parsedParams.success) {
+            throw formattedValidationErrors
+              ? fromZodError(parsedParams.error, {
+                  prefix: `Invalid Params passed to route: `,
+                })
+              : parsedParams.error;
+          }
+
+          if (routeConfig.searchParams && searchParamsSchema) {
+            const parsedSearchParams = searchParamsSchema.safeParse(
+              routeConfig.searchParams
+            );
+
+            if (!parsedSearchParams.success) {
+              throw formattedValidationErrors
+                ? fromZodError(parsedSearchParams.error, {
+                    prefix: `Invalid Search Params passed to route: `,
+                  })
+                : parsedParams.error;
+            }
+          }
+
+          // we have successfully passed the check here
+
+          const route = getRoute(fn(routeConfig.params));
+
+          const searchQuery =
+            routeConfig.searchParams &&
+            queryString.stringify(
+              routeConfig.searchParams,
+              searchParamsOptions
+            );
+
+          const href = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
+
+          return router.replace(href, navigationOptions);
+        };
+
+        const prefetch = (
+          routeConfig: {
+            params: input<TParams>;
+            searchParams?: input<TSearchParams>;
+          },
+          prefetchOptions?: PrefetchOptions,
+          searchParamsOptions?: queryString.StringifyOptions
+        ): void => {
+          // check if params are valid.
+          // check if the params are parsed successfully.
+
+          const parsedParams = paramsSchema.safeParse(routeConfig.params);
+
+          if (!parsedParams.success) {
+            throw formattedValidationErrors
+              ? fromZodError(parsedParams.error, {
+                  prefix: `Invalid Params passed to route: `,
+                })
+              : parsedParams.error;
+          }
+
+          if (routeConfig.searchParams && searchParamsSchema) {
+            const parsedSearchParams = searchParamsSchema.safeParse(
+              routeConfig.searchParams
+            );
+
+            if (!parsedSearchParams.success) {
+              throw formattedValidationErrors
+                ? fromZodError(parsedSearchParams.error, {
+                    prefix: `Invalid Search Params passed to route: `,
+                  })
+                : parsedParams.error;
+            }
+          }
+
+          // we have successfully passed the check here
+
+          const route = getRoute(fn(routeConfig.params));
+
+          const searchQuery =
+            routeConfig.searchParams &&
+            queryString.stringify(
+              routeConfig.searchParams,
+              searchParamsOptions
+            );
+
+          const href = [route, searchQuery ? `?${searchQuery}` : ``].join(``);
+
+          return router.prefetch(href, prefetchOptions);
+        };
+
+        return { ...router, push, replace, prefetch };
+      };
 
       return route;
     };
@@ -477,7 +728,74 @@ export const routeBuilder = (() => {
       );
     };
 
-    return { createRoute, Navigate };
+    const useTempehRouter = (
+      useNextRouterInstance: () => AppRouterInstance
+    ) => {
+      const router = useNextRouterInstance();
+
+      const push = <TSearchParams extends {}>(
+        urlOptions: {
+          path: string;
+          searchParams?: TSearchParams;
+        },
+        navigationOptions?: NavigateOptions,
+        searchParamsOptions?: queryString.StringifyOptions
+      ) => {
+        const stringifiedQParams =
+          urlOptions.searchParams &&
+          queryString.stringify(urlOptions.searchParams, searchParamsOptions);
+
+        const url = [
+          urlOptions.path,
+          stringifiedQParams ? `?${stringifiedQParams}` : ``,
+        ].join(``);
+
+        return router.push(url, navigationOptions);
+      };
+
+      const replace = <TSearchParams extends {}>(
+        urlOptions: {
+          path: string;
+          searchParams?: TSearchParams;
+        },
+        navigationOptions?: NavigateOptions,
+        searchParamsOptions?: queryString.StringifyOptions
+      ) => {
+        const stringifiedQParams =
+          urlOptions.searchParams &&
+          queryString.stringify(urlOptions.searchParams, searchParamsOptions);
+
+        const url = [
+          urlOptions.path,
+          stringifiedQParams ? `?${stringifiedQParams}` : ``,
+        ].join(``);
+
+        return router.replace(url, navigationOptions);
+      };
+
+      const prefetch = <TSearchParams extends {}>(
+        urlOptions: {
+          path: string;
+          searchParams?: TSearchParams;
+        },
+        prefetchOptions?: PrefetchOptions,
+        searchParamsOptions?: queryString.StringifyOptions
+      ) => {
+        const stringifiedQParams =
+          urlOptions.searchParams &&
+          queryString.stringify(urlOptions.searchParams, searchParamsOptions);
+
+        const url = [
+          urlOptions.path,
+          stringifiedQParams ? `?${stringifiedQParams}` : ``,
+        ].join(``);
+
+        return router.prefetch(url, prefetchOptions);
+      };
+      return { ...router, push, replace, prefetch };
+    };
+
+    return { createRoute, Navigate, useTempehRouter };
   };
 
   return {

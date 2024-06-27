@@ -1,0 +1,8 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "tempeh": "3.0.12"
+  },
+  "changesets": []
+}
