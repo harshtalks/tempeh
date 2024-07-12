@@ -4,9 +4,7 @@ Docs: https://tempeh-docs.vercel.app
 
 #### Important
 
-Version `3.0.0` is the current stable version
-
-## Typesafe server actions support
+## Typesafe server actions support, and useRouter with type safety.
 
 https://tempeh-docs.vercel.app/server-actions
 
