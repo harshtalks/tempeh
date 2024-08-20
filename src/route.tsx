@@ -12,6 +12,7 @@ import {
   string,
   union,
   ZodError,
+  z,
 } from "zod";
 import { convertURLSearchParamsToObject } from "./utils";
 import Link from "next/link";
@@ -146,6 +147,27 @@ export type RouteConfig<
       searchParamsOptions?: queryString.StringifyOptions
     ) => void;
   };
+
+  parseSearchParams: <
+    TValue extends any = unknown,
+    TSafe extends boolean = false
+  >(
+    value: TValue,
+    safe?: TSafe
+  ) => TSafe extends false
+    ? output<TSearchParams>
+    :
+        | { success: false; error: Error }
+        | { success: true; searchParams: output<TSearchParams> };
+
+  parseParams: <TValue extends any = unknown, TSafe extends boolean = false>(
+    value: TValue,
+    safe?: TSafe
+  ) => TSafe extends false
+    ? output<TParams>
+    :
+        | { success: false; error: Error }
+        | { success: true; params: output<TParams> };
 };
 
 /**
@@ -488,7 +510,7 @@ export const routeBuilder = (() => {
               ? fromZodError(parsedSearchParams.error, {
                   prefix: `Invalid Search Params passed to route: `,
                 })
-              : parsedParams.error;
+              : parsedSearchParams.error;
           }
         }
 
@@ -504,6 +526,72 @@ export const routeBuilder = (() => {
             {children}
           </Link>
         );
+      };
+
+      route.parseParams = <
+        TValue extends any = unknown,
+        TSafe extends boolean = false
+      >(
+        value: TValue,
+        safe?: TSafe
+      ): TSafe extends false
+        ? output<TParams>
+        :
+            | { success: false; error: Error }
+            | { success: true; params: output<TParams> } => {
+        if (!safe) {
+          return paramsSchema.parse(value);
+        } else {
+          const params = paramsSchema.safeParse(value);
+          if (params.success) {
+            return {
+              success: true as const,
+              params: params.data as output<TParams>,
+            };
+          } else {
+            return {
+              success: false as const,
+              error: formattedValidationErrors
+                ? fromZodError(params.error, {
+                    prefix: `Invalid Search Params passed to route: `,
+                  })
+                : params.error,
+            };
+          }
+        }
+      };
+
+      route.parseSearchParams = <
+        TValue extends any = unknown,
+        TSafe extends boolean = false
+      >(
+        value: TValue,
+        safe?: TSafe
+      ): TSafe extends false
+        ? output<TSearchParams>
+        :
+            | { success: false; error: Error }
+            | { success: true; searchParams: output<TSearchParams> } => {
+        if (!safe) {
+          return (searchParamsSchema || any()).parse(value);
+        } else {
+          const searchParams = (searchParamsSchema || any()).safeParse(value);
+          if (searchParams.success) {
+            return {
+              success: true as const,
+              searchParams: searchParams.data as output<TSearchParams>,
+            };
+          } else {
+            return {
+              success: false as const,
+              error: formattedValidationErrors
+                ? fromZodError(searchParams.error, {
+                    prefix: `Invalid Search Params passed to route: `,
+                  })
+                : searchParams.error,
+            };
+          }
+        }
       };
 
       Object.defineProperty(route, "params", {
