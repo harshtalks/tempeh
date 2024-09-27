@@ -976,7 +976,7 @@ export type CreateRouteConfig<
  * Global useParams and useSearchParams with routeconfig
  */
 
-export const useSafeParams = <
+export const useTypedParams = <
   TParams extends ZodSchema,
   TSearch extends ZodSchema
 >(
@@ -985,7 +985,7 @@ export const useSafeParams = <
   return routeInfo.useParams();
 };
 
-export const useSafeSearchParams = <
+export const useTypedSearchParams = <
   TParams extends ZodSchema,
   TSearch extends ZodSchema
 >(
