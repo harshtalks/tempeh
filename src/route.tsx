@@ -971,3 +971,25 @@ export type CreateRouteConfig<
    */
   baseUrl?: BaseUrls<TBaseUrls>;
 };
+
+/*
+ * Global useParams and useSearchParams with routeconfig
+ */
+
+export const useSafeParams = <
+  TParams extends ZodSchema,
+  TSearch extends ZodSchema
+>(
+  routeInfo: RouteConfig<TParams, TSearch>
+) => {
+  return routeInfo.useParams();
+};
+
+export const useSafeSearchParams = <
+  TParams extends ZodSchema,
+  TSearch extends ZodSchema
+>(
+  routeInfo: RouteConfig<TParams, TSearch>
+) => {
+  return routeInfo.useSearchParams();
+};
