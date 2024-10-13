@@ -2,7 +2,10 @@
 
 Docs: https://tempeh-docs.vercel.app
 
+
 #### Important
+
+use [tempeh-cli](https://github.com/harshtalks/tempeh-cli) to fasten up the process 
 
 ## Typesafe server actions support, and useRouter with type safety.
 
