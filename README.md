@@ -5,7 +5,7 @@ Docs: https://tempeh-docs.vercel.app
 
 #### Important
 
-use [tempeh-cli](https://github.com/harshtalks/tempeh-cli) to fasten up the process 
+use [tempeh-cli](https://github.com/harshtalks/tempeh-cli) to fasten up the process
 
 ## Typesafe server actions support, and useRouter with type safety.
 
@@ -82,7 +82,7 @@ console.log(
 // Path: src/index.ts
 // import { WorkspaceRoute } from "./routes.ts";
 
-<Link href={WorkspaceRoute({ workspaceId: "123" })}>
+<Link href={WorkspaceRoute.navigate({ workspaceId: "123" })}>
   <Button>Workspace</Button>
 </Link>
 ```
@@ -93,42 +93,4 @@ Or you can use our declarative routing approach as following:
 <WorkspaceRoute.Link params={{ workspaceId: "123" }}>
   <Button>Workspace</Button>
 </WorkspaceRoute.Link>
-```
-
-Package also serves the custom fetcher function generator to generate small async fetcher functions. Example:
-
-```ts
-// this fetcher creates a function to fetch the todo from json mock api
-const getTodo = createEndPoint({
-  httpMethod: "GET",
-  path: createRoute({
-    name: "getTodos",
-    fn: ({ todoId }) => `/todos/${todoId}`,
-    baseUrl: "https://jsonplaceholder.typicode.com", // will throw an error if custom baseRoute is not valid url
-    paramsSchema: object({ todoId: number() }),
-  }),
-  SafeResponse: true,
-  responseSchema: object({
-    userId: number(),
-    id: number(),
-    title: string(),
-    completed: boolean(),
-  }),
-  requestConfig: {
-    headers: {
-      "x-custom-header": "custom-value",
-    },
-  },
-});
-
-// iife to invoke the function and display result on console
-(async () => {
-  const todos = await getTodo({
-    params: {
-      todoId: 1,
-    },
-  });
-
-  console.log(todos);
-})();
 ```
