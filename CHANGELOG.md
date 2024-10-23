@@ -1,5 +1,15 @@
 # tempeh
 
+## 4.4.0-next.0
+
+### Minor Changes
+
+- 162574d: next as deps
+
+### Patch Changes
+
+- bafc979: dependencies
+
 ## 5.0.0-next.0
 
 ### Major Changes
