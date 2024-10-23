@@ -1,5 +1,11 @@
 # tempeh
 
+## 5.0.0-next.2
+
+### Major Changes
+
+- 2484dc9: version bump - expected to work nicely
+
 ## 4.4.0-next.1
 
 ### Minor Changes
