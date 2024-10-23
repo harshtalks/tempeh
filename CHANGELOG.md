@@ -1,5 +1,11 @@
 # tempeh
 
+## 5.0.0-next.3
+
+### Major Changes
+
+- 0f7133b: formatted errors in zod, better support
+
 ## 5.0.0-next.2
 
 ### Major Changes
