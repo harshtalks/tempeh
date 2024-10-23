@@ -11,21 +11,27 @@ import {
   NavigateLink,
   TempehGlobalRouterInstance,
 } from "./types";
-import { buildUrl } from "build-url-ts";
 import queryString from "query-string";
-import { convertURLSearchParamsToObject } from "./utils";
+import {
+  useParams as useNextParams,
+  useSearchParams as useNextSearchParams,
+} from "next/navigation";
+import { buildUrl, convertURLSearchParamsToObject } from "./utils";
 import { zodParse } from "./utils";
 import { fromZodError } from "zod-validation-error";
+import Link from "next/link";
+import { NavigateOptions } from "next/dist/shared/lib/app-router-context.shared-runtime";
+
 /**
 @description Singleton factory to create a route builder instance. This is the main function to create a route builder instance. It will return a frw utilities that can be used to create routes.
 */
 const routeBuilder = <TBaseUrls extends {}>(
-  options: RouteBuilderOptions<TBaseUrls>,
+  options: RouteBuilderOptions<TBaseUrls>
 ) => {
   let routeInstance = null as ReturnType<typeof routeBuilder> | null;
   // create route builder instance
   const routeBuilder = <TBaseUrls extends {}>(
-    options: RouteBuilderOptions<TBaseUrls>,
+    options: RouteBuilderOptions<TBaseUrls>
   ) => {
     // this will hold all our routes
     const routes: Record<string, RouteConfig<any, any>> = {};
@@ -33,36 +39,21 @@ const routeBuilder = <TBaseUrls extends {}>(
     // this will hold all our base urls and their respective accessors
     const parsedAdditionalBaseUrls =
       options.additionalBaseUrls &&
-      Object.entries(options.additionalBaseUrls).reduce(
-        (acc, [key, value]) => {
-          // parse the url
-          acc[key] = zodParse(urlOrRelativeUrlSchema, value);
-          // return the accumulator
-          return acc;
-        },
-        {} as Record<string, string>,
-      );
+      Object.entries(options.additionalBaseUrls).reduce((acc, [key, value]) => {
+        // parse the url
+        acc[key] = zodParse(urlOrRelativeUrlSchema, value);
+        // return the accumulator
+        return acc;
+      }, {} as Record<string, string>);
 
     // setting our default base url
     const defaultBaseUrl = zodParse(
       urlOrRelativeUrlSchema,
-      options.defaultBaseUrl || "/",
+      options.defaultBaseUrl || "/"
     );
 
-    // this will hold the router instance
-    const {
-      routerInstance: routerGetter,
-      Link,
-      useParams: useNextParams,
-      useSearchParams: useNextSearchParams,
-    } = options.navigation;
-
     // Here comes the function to create the full route
-    const getFullRoute = (
-      path: string,
-      baseUrl?: BaseUrls<any>,
-      hash?: string,
-    ) => {
+    const getFullRoute = (path: string, baseUrl?: BaseUrls<any>) => {
       // will throw if the path is not a valid path
       const validPath = zodParse(validPathNameSchema, path);
 
@@ -74,7 +65,7 @@ const routeBuilder = <TBaseUrls extends {}>(
         if (parsedAdditionalBaseUrls && baseUrl in parsedAdditionalBaseUrls) {
           const validBase = zodParse(
             urlOrRelativeUrlSchema,
-            parsedAdditionalBaseUrls[baseUrl as string],
+            parsedAdditionalBaseUrls[baseUrl as string]
           );
           // if the base url is valid, then set it
           base = validBase;
@@ -86,9 +77,9 @@ const routeBuilder = <TBaseUrls extends {}>(
       }
 
       // create the full route
-      const fullRoute = buildUrl(base, {
+      const fullRoute = buildUrl({
+        base: base,
         path: validPath,
-        hash,
       });
 
       return fullRoute;
@@ -97,9 +88,9 @@ const routeBuilder = <TBaseUrls extends {}>(
     // Here comes the function to create the route object
     const createRoute = <
       TParams extends ZodSchema,
-      TSearchParams extends ZodSchema,
+      TSearchParams extends ZodSchema
     >(
-      options: CreateRouteConfig<TParams, TSearchParams, TBaseUrls>,
+      options: CreateRouteConfig<TParams, TSearchParams, TBaseUrls>
     ) => {
       const {
         fn,
@@ -139,13 +130,13 @@ const routeBuilder = <TBaseUrls extends {}>(
       };
 
       const useGetSearchParmas = <TSafe extends boolean = false>(
-        safe: TSafe,
+        safe: TSafe
       ) => {
         const searchParamsSchemaUpdated = searchParamsSchema || any();
 
         if (safe) {
           const safeResult = searchParamsSchemaUpdated.safeParse(
-            convertURLSearchParamsToObject(useNextSearchParams()),
+            convertURLSearchParamsToObject(useNextSearchParams())
           );
           if (safeResult.success) {
             return {
@@ -163,7 +154,7 @@ const routeBuilder = <TBaseUrls extends {}>(
         } else {
           const result = zodParse(
             searchParamsSchemaUpdated,
-            convertURLSearchParamsToObject(useNextSearchParams()),
+            convertURLSearchParamsToObject(useNextSearchParams())
           );
 
           return result;
@@ -177,25 +168,28 @@ const routeBuilder = <TBaseUrls extends {}>(
         // we have got the full route here.
         const fullRoute = getFullRoute(
           fn(parsedParams),
-          options?.baseUrl ?? routeBaseUrl,
-          options?.hash,
+          options?.baseUrl ?? routeBaseUrl
         );
 
         let searchParams = "";
         if (options?.searchParams) {
           const validSearchParams = zodParse(
             searchParamsSchema ?? any(),
-            options.searchParams,
+            options.searchParams
           );
 
           searchParams = queryString.stringify(
             validSearchParams,
-            options.searchParamsOptions,
+            options.searchParamsOptions
           );
         }
 
         // This is the returning full route
-        return [fullRoute, !!searchParams ? `?${searchParams}` : ``].join(``);
+        return [
+          fullRoute,
+          !!searchParams ? `?${searchParams}` : ``,
+          options?.hash ? `#${options.hash}` : ``,
+        ].join(``);
       };
 
       route.useParams = <TSafe extends boolean = false>(options?: {
@@ -229,26 +223,26 @@ const routeBuilder = <TBaseUrls extends {}>(
 
         const fullRoute = getFullRoute(
           fn(parsedParams),
-          baseUrl ?? routeBaseUrl,
-          hash,
+          baseUrl ?? routeBaseUrl
         );
 
         let parsedSearchParams = "";
         if (searchParams) {
           const validSearchParams = zodParse(
             searchParamsSchema ?? any(),
-            searchParams,
+            searchParams
           );
 
           parsedSearchParams = queryString.stringify(
             validSearchParams,
-            searchParamsOptions,
+            searchParamsOptions
           );
         }
 
         const href = [
           fullRoute,
           !!parsedSearchParams ? `?${parsedSearchParams}` : ``,
+          hash ? `#${hash}` : ``,
         ].join(``);
 
         return (
@@ -258,11 +252,8 @@ const routeBuilder = <TBaseUrls extends {}>(
         );
       };
 
-      route.useRouter = () => {
-        if (!routerGetter) {
-          throw new Error("Router instance is not provided");
-        }
-        const router = routerGetter();
+      route.useRouter = (useRouter) => {
+        const router = useRouter();
 
         return {
           push: ({
@@ -278,22 +269,22 @@ const routeBuilder = <TBaseUrls extends {}>(
             if (searchParams) {
               const validSearchParams = zodParse(
                 searchParamsSchema ?? any(),
-                searchParams,
+                searchParams
               );
 
               parsedSearchParams = queryString.stringify(
                 validSearchParams,
-                searchParamsOptions,
+                searchParamsOptions
               );
             }
             const fullRoute = getFullRoute(
               fn(parsedParams),
-              baseUrl ?? routeBaseUrl,
-              hash,
+              baseUrl ?? routeBaseUrl
             );
             const href = [
               fullRoute,
               !!parsedSearchParams ? `?${parsedSearchParams}` : ``,
+              hash ? `#${hash}` : ``,
             ].join(``);
 
             router.push(href, navigationOptions);
@@ -308,28 +299,28 @@ const routeBuilder = <TBaseUrls extends {}>(
           }) => {
             const parsedParams = zodParse(
               paramsSchema,
-              baseUrl ?? routeBaseUrl,
+              baseUrl ?? routeBaseUrl
             );
             let parsedSearchParams = "";
             if (searchParams) {
               const validSearchParams = zodParse(
                 searchParamsSchema ?? any(),
-                searchParams,
+                searchParams
               );
 
               parsedSearchParams = queryString.stringify(
                 validSearchParams,
-                searchParamsOptions,
+                searchParamsOptions
               );
             }
             const fullRoute = getFullRoute(
               fn(parsedParams),
-              baseUrl ?? routeBaseUrl,
-              hash,
+              baseUrl ?? routeBaseUrl
             );
             const href = [
               fullRoute,
               !!parsedSearchParams ? `?${parsedSearchParams}` : ``,
+              hash ? `#${hash}` : ``,
             ].join(``);
 
             router.replace(href, navigationOptions);
@@ -347,22 +338,22 @@ const routeBuilder = <TBaseUrls extends {}>(
             if (searchParams) {
               const validSearchParams = zodParse(
                 searchParamsSchema ?? any(),
-                searchParams,
+                searchParams
               );
 
               parsedSearchParams = queryString.stringify(
                 validSearchParams,
-                searchParamsOptions,
+                searchParamsOptions
               );
             }
             const fullRoute = getFullRoute(
               fn(parsedParams),
-              baseUrl ?? routeBaseUrl,
-              hash,
+              baseUrl ?? routeBaseUrl
             );
             const href = [
               fullRoute,
               !!parsedSearchParams ? `?${parsedSearchParams}` : ``,
+              hash ? `#${hash}` : ``,
             ].join(``);
 
             router.prefetch(href, navigationOptions);
@@ -372,10 +363,10 @@ const routeBuilder = <TBaseUrls extends {}>(
 
       route.parseParams = <
         TValue extends unknown = unknown,
-        TSafe extends boolean = false,
+        TSafe extends boolean = false
       >(
         value: TValue,
-        safe?: TSafe,
+        safe?: TSafe
       ): TSafe extends true
         ? SafeParamsResult<output<TParams>>
         : output<TParams> => {
@@ -401,10 +392,10 @@ const routeBuilder = <TBaseUrls extends {}>(
 
       route.parseSearchParams = <
         TValue extends unknown = unknown,
-        TSafe extends boolean = false,
+        TSafe extends boolean = false
       >(
         value: TValue,
-        safe?: TSafe,
+        safe?: TSafe
       ): TSafe extends true
         ? SafeParamsResult<output<TSearchParams>>
         : output<TSearchParams> => {
@@ -459,8 +450,10 @@ const routeBuilder = <TBaseUrls extends {}>(
     };
 
     // Global tempeh router
-    const useTempehRouter = (): TempehGlobalRouterInstance<TBaseUrls> => {
-      const router = routerGetter();
+    const useTempehRouter: TempehGlobalRouterInstance<TBaseUrls> = (
+      useRouter
+    ) => {
+      const router = useRouter();
       return {
         push: ({
           path,
@@ -488,6 +481,13 @@ const routeBuilder = <TBaseUrls extends {}>(
           baseUrl,
           hash,
           navigationOptions,
+        }: {
+          path: string;
+          baseUrl?: BaseUrls<TBaseUrls>;
+          searchParams?: Record<string, any>;
+          searchParamsOptions?: queryString.StringifyOptions;
+          hash?: string;
+          navigationOptions?: NavigateOptions;
         }) => {
           const fullRoute = getFullRoute(path, baseUrl);
           const href = [

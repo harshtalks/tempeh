@@ -2,14 +2,16 @@ import {
   NavigateOptions,
   PrefetchOptions,
   AppRouterInstance,
-  UseParams,
-  UseSearchParams,
-} from "./next-types";
+} from "next/dist/shared/lib/app-router-context.shared-runtime";
+import Link from "next/link";
 import queryString from "query-string";
 import { ComponentProps } from "react";
 import type { ZodError, ZodSchema, input, output } from "zod";
-import { type IQueryParams } from "build-url-ts";
-import Link from "./link-type";
+
+export type QueryParams = Record<
+  string,
+  null | undefined | string | number | string[] | (string | number)[]
+>;
 
 export type RouteBuilderOptions<TBaseUrls extends {}> = {
   /**
@@ -17,24 +19,13 @@ export type RouteBuilderOptions<TBaseUrls extends {}> = {
    * @type {Object}
    * @description additionalBaseUrls is an object which contains the base urls which can be used in the routes. It is used to append the base url to the route. It is an optional field.
    */
-  additionalBaseUrls: TBaseUrls;
+  additionalBaseUrls?: TBaseUrls;
   /**
    * @name defaultBaseUrl
    * @type {string}
    * @description defaultBaseUrl is the base url which will be appended to the route if the route does not have any base url. It will take any route that you have defined during the instantiation of routeBuilder. It is an optional field.
    */
   defaultBaseUrl?: string;
-  /**
-   * @name navigation
-   * @type {Object}
-   * @description We need to pass facades for navigation. These are all the bridging functions that we need to pass to the route builder.
-   */
-  navigation: {
-    useParams: UseParams;
-    useSearchParams: UseSearchParams;
-    Link: Link;
-    routerInstance: () => AppRouterInstance;
-  };
 };
 
 export type BaseUrls<T extends {}> = keyof T | (string & {});
@@ -42,25 +33,25 @@ export type BaseUrls<T extends {}> = keyof T | (string & {});
 export type RouteLink<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema,
-  TBaseUrls extends {} = {},
+  TBaseUrls extends {} = {}
 > = (
-  props: Omit<ComponentProps<Link>, "href"> & {
+  props: Omit<ComponentProps<typeof Link>, "href"> & {
     params: input<TParams>;
     searchParams?: input<TSearchParams>;
     searchParamsOptions?: queryString.StringifyOptions;
     baseUrl?: BaseUrls<TBaseUrls>;
     hash?: string;
-  },
+  }
 ) => JSX.Element;
 
 export type NavigateLink<TBaseUrls extends {} = {}> = (
-  props: Omit<ComponentProps<Link>, "href"> & {
-    searchParams: IQueryParams;
+  props: Omit<ComponentProps<typeof Link>, "href"> & {
+    searchParams: QueryParams;
     baseUrl: BaseUrls<TBaseUrls>;
     path: string;
     searchParamsOptions?: queryString.StringifyOptions;
     hash?: string;
-  },
+  }
 ) => JSX.Element;
 
 export type SafeParamsResult<T> =
@@ -76,7 +67,7 @@ export type SafeParamsResult<T> =
 export type TempehRouterInstance<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema,
-  TBaseUrls extends {},
+  TBaseUrls extends {}
 > = {
   /**
    * @name push
@@ -118,14 +109,16 @@ export type TempehRouterInstance<
   }) => void;
 };
 
-export type TempehGlobalRouterInstance<TBaseUrls extends {}> = {
+export type TempehGlobalRouterInstance<TBaseUrls extends {}> = (
+  useRouter: () => AppRouterInstance
+) => {
   /**
    * @name push
    * @description useful for navigating to a new route. It will push the new route to the history stack.
    */
   push: (routeConfig: {
     path: string;
-    searchParams?: IQueryParams;
+    searchParams?: QueryParams;
     searchParamsOptions?: queryString.StringifyOptions;
     navigationOptions?: NavigateOptions;
     baseUrl?: BaseUrls<TBaseUrls>;
@@ -137,7 +130,7 @@ export type TempehGlobalRouterInstance<TBaseUrls extends {}> = {
    */
   replace: (routeConfig: {
     path: string;
-    searchParams?: IQueryParams;
+    searchParams?: QueryParams;
     searchParamsOptions?: queryString.StringifyOptions;
     navigationOptions?: NavigateOptions;
     baseUrl?: BaseUrls<TBaseUrls>;
@@ -149,7 +142,7 @@ export type TempehGlobalRouterInstance<TBaseUrls extends {}> = {
    */
   prefetch: (routeConfig: {
     path: string;
-    searchParams?: IQueryParams;
+    searchParams?: QueryParams;
     searchParamsOptions?: queryString.StringifyOptions;
     navigationOptions?: PrefetchOptions;
     baseUrl?: BaseUrls<TBaseUrls>;
@@ -164,7 +157,7 @@ export type TempehGlobalRouterInstance<TBaseUrls extends {}> = {
 export type RouteConfig<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema,
-  TBaseUrls extends {} = {},
+  TBaseUrls extends {} = {}
 > = {
   /**
    * @name navigate
@@ -178,7 +171,7 @@ export type RouteConfig<
       searchParamsOptions?: queryString.StringifyOptions;
       baseUrl?: BaseUrls<TBaseUrls>;
       hash?: string;
-    },
+    }
   ) => string;
 
   /**
@@ -203,9 +196,7 @@ export type RouteConfig<
    */
   useSearchParams: <TSafe extends boolean = false>(options?: {
     safe?: TSafe;
-  }) => TSafe extends true
-    ? SafeParamsResult<output<TSearchParams>>
-    : output<TSearchParams>;
+  }) => output<TSearchParams>;
 
   /**
    * @name Link
@@ -218,8 +209,11 @@ export type RouteConfig<
    * @name useRouter
    * @description Drop in replacement for Next.js useRouter hook. It is route specific, which means that each route has its own useRouter instance.
    * @example RouteInfo.useRouter() -> {push,replace,prefetch}
+   * @param useRouter - Next.js useRouter hook
    */
-  useRouter: () => TempehRouterInstance<TParams, TSearchParams, TBaseUrls>;
+  useRouter: (
+    useRouter: () => AppRouterInstance
+  ) => TempehRouterInstance<TParams, TSearchParams, TBaseUrls>;
 
   /**
    * @name parseSearchParams
@@ -229,10 +223,10 @@ export type RouteConfig<
    */
   parseSearchParams: <
     TValue extends any = unknown,
-    TSafe extends boolean = false,
+    TSafe extends boolean = false
   >(
     value: TValue,
-    safe?: TSafe,
+    safe?: TSafe
   ) => TSafe extends false
     ? output<TSearchParams>
     : SafeParamsResult<output<TSearchParams>>;
@@ -245,7 +239,7 @@ export type RouteConfig<
    */
   parseParams: <TValue extends any = unknown, TSafe extends boolean = false>(
     value: TValue,
-    safe?: TSafe,
+    safe?: TSafe
   ) => TSafe extends false
     ? output<TParams>
     : SafeParamsResult<output<TParams>>;
@@ -254,7 +248,7 @@ export type RouteConfig<
 export type CreateRouteConfig<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema,
-  TBaseUrls extends {},
+  TBaseUrls extends {}
 > = {
   /**
    * @name name

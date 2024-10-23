@@ -1,0 +1,12 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "tempeh": "4.3.0"
+  },
+  "changesets": [
+    "cold-cameras-relate",
+    "silly-maps-bow",
+    "two-pianos-press"
+  ]
+}

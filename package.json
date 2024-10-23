@@ -10,7 +10,6 @@
     "@changesets/cli": "^2.27.1",
     "@types/bun": "latest",
     "@types/react": "^18.2.74",
-    "build-url-ts": "^6.1.7",
     "next": "^15.0.1",
     "query-string": "^8.2.0",
     "server-only": "^0.0.1",
