@@ -1,5 +1,11 @@
 # tempeh
 
+## 4.4.0-next.1
+
+### Minor Changes
+
+- 49c1bbe: url schema error is fixed now
+
 ## 4.4.0-next.0
 
 ### Minor Changes
