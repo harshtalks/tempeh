@@ -15,6 +15,7 @@
     "server-only": "^0.0.1",
     "tsup": "^8.0.2",
     "typescript": "^5.3.3",
+    "vitest": "^2.1.3",
     "zod": "^3.23.6",
     "zod-validation-error": "^3.2.0"
   },
@@ -23,8 +24,9 @@
     "next": ">= 14.0.0"
   },
   "scripts": {
-    "local-release": "changeset version && changeset publish",
-    "local-build": "tsup src/index.ts --format cjs,esm --dts"
+    "prerelease": "changeset version && changeset publish",
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "vitest"
   },
   "author": "Harsh Pareek",
   "license": "MIT",
