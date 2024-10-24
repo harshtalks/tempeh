@@ -33,9 +33,6 @@ const routeBuilder = <TBaseUrls extends {}>(
   const routeBuilder = <TBaseUrls extends {}>(
     options: RouteBuilderOptions<TBaseUrls>
   ) => {
-    // this will hold all our routes
-    const routes: Record<string, RouteConfig<any, any>> = {};
-
     // this will hold all our base urls and their respective accessors
     const parsedAdditionalBaseUrls =
       options.additionalBaseUrls &&
@@ -100,12 +97,7 @@ const routeBuilder = <TBaseUrls extends {}>(
         searchParamsSchema,
       } = options;
 
-      if (routes[name]) {
-        throw new Error(`Route with name ${name} already exists`);
-      }
-
       const route = {} as RouteConfig<TParams, TSearchParams, TBaseUrls>;
-      routes[name] = route;
 
       const useGetParams = <TSafe extends boolean = false>(safe: TSafe) => {
         if (safe) {
@@ -124,7 +116,9 @@ const routeBuilder = <TBaseUrls extends {}>(
             } as SafeParamsResult<any>;
           }
         } else {
-          const result = zodParse(paramsSchema, useNextParams());
+          const result = zodParse(paramsSchema, useNextParams(), {
+            prefix: `Error in route "${name}" params`,
+          });
           return result;
         }
       };
@@ -154,7 +148,10 @@ const routeBuilder = <TBaseUrls extends {}>(
         } else {
           const result = zodParse(
             searchParamsSchemaUpdated,
-            convertURLSearchParamsToObject(useNextSearchParams())
+            convertURLSearchParamsToObject(useNextSearchParams()),
+            {
+              prefix: `Error in route "${name}" search params`,
+            }
           );
 
           return result;
@@ -328,7 +325,7 @@ const routeBuilder = <TBaseUrls extends {}>(
           prefetch: ({
             params,
             searchParams,
-            navigationOptions,
+            prefetchOptions,
             baseUrl,
             searchParamsOptions,
             hash,
@@ -356,7 +353,7 @@ const routeBuilder = <TBaseUrls extends {}>(
               hash ? `#${hash}` : ``,
             ].join(``);
 
-            router.prefetch(href, navigationOptions);
+            router.prefetch(href, prefetchOptions);
           },
         };
       };
@@ -506,7 +503,7 @@ const routeBuilder = <TBaseUrls extends {}>(
           searchParamsOptions,
           baseUrl,
           hash,
-          navigationOptions,
+          prefetchOptions,
         }) => {
           const fullRoute = getFullRoute(path, baseUrl);
           const href = [
@@ -517,7 +514,7 @@ const routeBuilder = <TBaseUrls extends {}>(
             hash ? `#${hash}` : ``,
           ].join(``);
 
-          router.prefetch(href, navigationOptions);
+          router.prefetch(href, prefetchOptions);
         },
       };
     };

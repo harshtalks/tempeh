@@ -1,8 +1,8 @@
-import { ZodSchema, number, object } from "zod";
+import { ZodSchema } from "zod";
 import { FromZodErrorOptions, fromZodError } from "zod-validation-error";
 import { ReadonlyURLSearchParams } from "next/navigation";
-import routeBuilder from "./route-builder";
 
+// Convert URLSearchParams to object
 export function convertURLSearchParamsToObject(
   params: ReadonlyURLSearchParams | null
 ): Record<string, string | string[]> {
@@ -21,6 +21,7 @@ export function convertURLSearchParamsToObject(
   return obj;
 }
 
+// Parse a value using a Zod schema
 export const zodParse = <T extends ZodSchema>(
   zodSchema: T,
   value: unknown,
@@ -38,6 +39,7 @@ export const zodParse = <T extends ZodSchema>(
   return safeParsed.data;
 };
 
+// Very simple buildUrl function
 export function buildUrl({
   base,
   path,
@@ -54,14 +56,6 @@ export function buildUrl({
 
   if (base.startsWith("http") || base.startsWith("//")) {
     return `${cleanBase}${cleanPath}`;
-  }
-
-  if (base.startsWith(".")) {
-    const currentPath =
-      typeof window !== "undefined" ? window.location.pathname : "/";
-    const absoluteBase = new URL(base, `http://domain.com${currentPath}`)
-      .pathname;
-    return `${absoluteBase}${cleanPath}`;
   }
 
   if (base.startsWith("/")) {

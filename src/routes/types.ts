@@ -36,20 +36,70 @@ export type RouteLink<
   TBaseUrls extends {} = {}
 > = (
   props: Omit<ComponentProps<typeof Link>, "href"> & {
+    /**
+     * @name params
+     * @type {object}
+     * @description params is an object which contains the parameters that are required to build the route. It is a required field.
+     */
     params: input<TParams>;
+    /**
+     * @name searchParams
+     * @type {object}
+     * @description searchParams is an object which contains the search parameters that are required to build the route. It is an optional field.
+     */
     searchParams?: input<TSearchParams>;
+    /**
+     * @name searchParamsOptions
+     * @type {queryString.StringifyOptions}
+     * @description Options for stringifying search parameters. Controls how the query string is formatted.
+     */
     searchParamsOptions?: queryString.StringifyOptions;
+    /**
+     * @name baseUrl
+     * @type {BaseUrls<TBaseUrls>}
+     * @description The base URL to be used for the route. Can be a key from the provided base URLs or a string.
+     */
     baseUrl?: BaseUrls<TBaseUrls>;
+    /**
+     * @name hash
+     * @type {string}
+     * @description URL fragment identifier (the part after #) to append to the URL.
+     */
     hash?: string;
   }
 ) => JSX.Element;
 
 export type NavigateLink<TBaseUrls extends {} = {}> = (
   props: Omit<ComponentProps<typeof Link>, "href"> & {
+    /**
+     * @name searchParams
+     * @type {QueryParams}
+     * @description The search parameters to include in the URL query string.
+     */
     searchParams: QueryParams;
+    /**
+     * @name baseUrl
+     * @type {BaseUrls<TBaseUrls>}
+     * @description The base URL to be used for the route. Can be a key from the provided base URLs or a string.
+     */
     baseUrl: BaseUrls<TBaseUrls>;
+    /**
+     * @name path
+     * @type {string}
+     * @description The URL path to navigate to.
+     */
     path: string;
+    /**
+     * @name searchParamsOptions
+     * @type {queryString.StringifyOptions}
+     * @description Options for stringifying search parameters. Controls how the query string is formatted.
+     */
     searchParamsOptions?: queryString.StringifyOptions;
+    /**
+     * @name hash
+     * @type {string}
+     * @description URL fragment identifier (the part after #) to append to the URL.
+     */
     hash?: string;
   }
 ) => JSX.Element;
@@ -64,6 +114,65 @@ export type SafeParamsResult<T> =
       error: ZodError | Error;
     };
 
+export type TypedRouterPushConfig<
+  TParams extends ZodSchema,
+  TSearchParams extends ZodSchema,
+  TBaseUrls extends {}
+> = {
+  /**
+   * @name params
+   * @type {object}
+   * @description The parameters required to build the route.
+   */
+  params: input<TParams>;
+  /**
+   * @name searchParams
+   * @type {object}
+   * @description Optional search parameters to include in the URL query string.
+   */
+  searchParams?: input<TSearchParams>;
+  /**
+   * @name searchParamsOptions
+   * @type {queryString.StringifyOptions}
+   * @description Options for stringifying search parameters. Controls how the query string is formatted.
+   */
+  searchParamsOptions?: queryString.StringifyOptions;
+  /**
+   * @name navigationOptions
+   * @type {NavigateOptions}
+   * @description Options to configure the navigation behavior.
+   */
+  navigationOptions?: NavigateOptions;
+  /**
+   * @name baseUrl
+   * @type {BaseUrls<TBaseUrls>}
+   * @description The base URL to be used for the route. Can be a key from the provided base URLs or a string.
+   */
+  baseUrl?: BaseUrls<TBaseUrls>;
+  /**
+   * @name hash
+   * @type {string}
+   * @description URL fragment identifier (the part after #) to append to the URL.
+   */
+  hash?: string;
+};
+
+export type TypedRouterPrefetchConfig<
+  TParams extends ZodSchema,
+  TSearchParams extends ZodSchema,
+  TBaseUrls extends {}
+> = Omit<
+  TypedRouterPushConfig<TParams, TSearchParams, TBaseUrls>,
+  "navigationOptions"
+> & {
+  /**
+   * @name prefetchOptions
+   * @type {PrefetchOptions}
+   * @description Options to configure the prefetch behavior.
+   */
+  prefetchOptions?: PrefetchOptions;
+};
+
 export type TempehRouterInstance<
   TParams extends ZodSchema,
   TSearchParams extends ZodSchema,
@@ -73,40 +182,76 @@ export type TempehRouterInstance<
    * @name push
    * @description useful for navigating to a new route. It will push the new route to the history stack.
    */
-  push: (routeConfig: {
-    params: input<TParams>;
-    searchParams?: input<TSearchParams>;
-    searchParamsOptions?: queryString.StringifyOptions;
-    navigationOptions?: NavigateOptions;
-    baseUrl?: BaseUrls<TBaseUrls>;
-    hash?: string;
-  }) => void;
+  push: (
+    routeConfig: TypedRouterPushConfig<TParams, TSearchParams, TBaseUrls>
+  ) => void;
 
   /**
    * @name replace
    * @description useful for replacing the current route with a new route. It will replace the current route in the history stack.
    */
-  replace: (routeConfig: {
-    params: input<TParams>;
-    searchParams?: input<TSearchParams>;
-    searchParamsOptions?: queryString.StringifyOptions;
-    navigationOptions?: NavigateOptions;
-    baseUrl?: BaseUrls<TBaseUrls>;
-    hash?: string;
-  }) => void;
+  replace: (
+    routeConfig: TypedRouterPushConfig<TParams, TSearchParams, TBaseUrls>
+  ) => void;
 
   /**
    * @name prefetch
    * @description useful for prefetching the route. It will prefetch the route and store it in the cache.
    */
-  prefetch: (routeConfig: {
-    params: input<TParams>;
-    searchParams?: input<TSearchParams>;
-    searchParamsOptions?: queryString.StringifyOptions;
-    navigationOptions?: PrefetchOptions;
-    baseUrl?: BaseUrls<TBaseUrls>;
-    hash?: string;
-  }) => void;
+  prefetch: (
+    routeConfig: TypedRouterPrefetchConfig<TParams, TSearchParams, TBaseUrls>
+  ) => void;
+};
+
+export type GlobalRouterPushConfig<TBaseUrls extends {}> = {
+  /**
+   * @name path
+   * @type {string}
+   * @description The URL path to navigate to.
+   */
+  path: string;
+  /**
+   * @name searchParams
+   * @type {QueryParams}
+   * @description The search parameters to include in the URL query string.
+   */
+  searchParams?: QueryParams;
+  /**
+   * @name searchParamsOptions
+   * @type {queryString.StringifyOptions}
+   * @description Options for stringifying search parameters. Controls how the query string is formatted.
+   */
+  searchParamsOptions?: queryString.StringifyOptions;
+  /**
+   * @name navigationOptions
+   * @type {NavigateOptions}
+   * @description Options to configure the navigation behavior.
+   */
+  navigationOptions?: NavigateOptions;
+  /**
+   * @name baseUrl
+   * @type {BaseUrls<TBaseUrls>}
+   * @description The base URL to be used for the route. Can be a key from the provided base URLs or a string.
+   */
+  baseUrl?: BaseUrls<TBaseUrls>;
+  /**
+   * @name hash
+   * @type {string}
+   * @description URL fragment identifier (the part after #) to append to the URL.
+   */
+  hash?: string;
+};
+
+export type GlobalRouterPrefetchConfig<TBaseUrls extends {}> = Omit<
+  GlobalRouterPushConfig<TBaseUrls>,
+  "navigationOptions"
+> & {
+  /**
+   * @name prefetchOptions
+   * @type {PrefetchOptions}
+   * @description Options to configure the prefetch behavior.
+   */
+  prefetchOptions?: PrefetchOptions;
 };
 
 export type TempehGlobalRouterInstance<TBaseUrls extends {}> = (
@@ -116,38 +261,17 @@ export type TempehGlobalRouterInstance<TBaseUrls extends {}> = (
    * @name push
    * @description useful for navigating to a new route. It will push the new route to the history stack.
    */
-  push: (routeConfig: {
-    path: string;
-    searchParams?: QueryParams;
-    searchParamsOptions?: queryString.StringifyOptions;
-    navigationOptions?: NavigateOptions;
-    baseUrl?: BaseUrls<TBaseUrls>;
-    hash?: string;
-  }) => void;
+  push: (routeConfig: GlobalRouterPushConfig<TBaseUrls>) => void;
   /**
    * @name replace
    * @description useful for replacing the current route with a new route. It will replace the current route in the history stack.
    */
-  replace: (routeConfig: {
-    path: string;
-    searchParams?: QueryParams;
-    searchParamsOptions?: queryString.StringifyOptions;
-    navigationOptions?: NavigateOptions;
-    baseUrl?: BaseUrls<TBaseUrls>;
-    hash?: string;
-  }) => void;
+  replace: (routeConfig: GlobalRouterPushConfig<TBaseUrls>) => void;
   /**
    * @name prefetch
    * @description useful for prefetching the route. It will prefetch the route and store it in the cache.
    */
-  prefetch: (routeConfig: {
-    path: string;
-    searchParams?: QueryParams;
-    searchParamsOptions?: queryString.StringifyOptions;
-    navigationOptions?: PrefetchOptions;
-    baseUrl?: BaseUrls<TBaseUrls>;
-    hash?: string;
-  }) => void;
+  prefetch: (routeConfig: GlobalRouterPrefetchConfig<TBaseUrls>) => void;
 };
 
 /**
@@ -252,7 +376,7 @@ export type CreateRouteConfig<
 > = {
   /**
    * @name name
-   * @description name of the route. It should be unique as internally this key is used to store the route, Will throw an error if the route with the same name already exists.
+   * @description name of the route. If you provide unique name for each of your routes, it will be reflected in the generated route specific errors.
    */
   name: string;
   /**
