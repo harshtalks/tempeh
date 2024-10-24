@@ -1,5 +1,11 @@
 # tempeh
 
+## 5.0.0-next.4
+
+### Major Changes
+
+- 3f2b114: wrote few tests, made functions simpler
+
 ## 5.0.0-next.3
 
 ### Major Changes
