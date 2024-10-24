@@ -1,5 +1,24 @@
 # tempeh
 
+## 5.0.0
+
+### Major Changes
+
+- 3da82de: rewrote entire routes section, api improvements, no more fetcher
+- 0f7133b: formatted errors in zod, better support
+- 3f2b114: wrote few tests, made functions simpler
+- cb66fed: fixing stuffs
+- 2484dc9: version bump - expected to work nicely
+
+### Minor Changes
+
+- 162574d: next as deps
+- 49c1bbe: url schema error is fixed now
+
+### Patch Changes
+
+- bafc979: dependencies
+
 ## 5.0.0-next.4
 
 ### Major Changes
