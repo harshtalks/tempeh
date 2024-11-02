@@ -76,7 +76,7 @@ export type NavigateLink<TBaseUrls extends {} = {}> = (
      * @type {QueryParams}
      * @description The search parameters to include in the URL query string.
      */
-    searchParams: QueryParams;
+    searchParams?: QueryParams;
     /**
      * @name baseUrl
      * @type {BaseUrls<TBaseUrls>}
