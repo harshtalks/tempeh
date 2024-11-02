@@ -1,5 +1,11 @@
 # tempeh
 
+## 5.0.2
+
+### Patch Changes
+
+- ee01cbb: rm console log
+
 ## 5.0.1
 
 ### Patch Changes
