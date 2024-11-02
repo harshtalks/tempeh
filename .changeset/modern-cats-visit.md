@@ -1,0 +1,5 @@
+---
+"tempeh": patch
+---
+
+zod errors
