@@ -1,5 +1,11 @@
 # tempeh
 
+## 5.0.1
+
+### Patch Changes
+
+- 826bc96: zod errors
+
 ## 5.0.0
 
 ### Major Changes
