@@ -1,5 +1,5 @@
 import { ZodSchema } from "zod";
-import { FromZodErrorOptions, fromZodError } from "zod-validation-error";
+import { FromZodErrorOptions, fromError } from "zod-validation-error";
 import { ReadonlyURLSearchParams } from "next/navigation";
 
 // Convert URLSearchParams to object
@@ -31,7 +31,7 @@ export const zodParse = <T extends ZodSchema>(
   console.log(safeParsed, value);
 
   if (!safeParsed.success) {
-    throw fromZodError(safeParsed.error, {
+    throw fromError(safeParsed.error, {
       ...options,
     });
   }

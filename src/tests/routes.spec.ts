@@ -159,5 +159,18 @@ describe("navigate", () => {
         )
       ).toEqual("/workspace/123?archived=1&tab=overview&view=list");
     });
+
+    test("parsed params on fail, should yield ZodError", () => {
+      const parsedParams = WorkspaceRoute.parseParams(
+        {
+          workspaceId: null,
+        },
+        true
+      );
+
+      console.log(parsedParams);
+
+      expect(parsedParams.success).toBe(false);
+    });
   });
 });
