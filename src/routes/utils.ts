@@ -28,7 +28,6 @@ export const zodParse = <T extends ZodSchema>(
   options?: FromZodErrorOptions
 ) => {
   const safeParsed = zodSchema.safeParse(value);
-  console.log(safeParsed, value);
 
   if (!safeParsed.success) {
     throw fromError(safeParsed.error, {
