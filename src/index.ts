@@ -1,3 +1,4 @@
-export { ValidationError as FormattedValidationError } from "zod-validation-error";
+import { StandardSchemaV1 } from "./standard-schema";
+
 export * from "./routes";
-export * from "./actions";
+export type FailureResult = StandardSchemaV1.FailureResult;
