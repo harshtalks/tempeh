@@ -1,5 +1,11 @@
 # tempeh
 
+## 6.0.0-rc.0
+
+### Major Changes
+
+- e8ca136: 1. rm actions 2. std schema
+
 ## 5.0.2
 
 ### Patch Changes
