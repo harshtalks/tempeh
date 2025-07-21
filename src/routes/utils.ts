@@ -1,6 +1,7 @@
-import { ZodSchema } from "zod";
 import { FromZodErrorOptions, fromError } from "zod-validation-error";
 import { ReadonlyURLSearchParams } from "next/navigation";
+import { StandardSchemaV1 } from "../standard-schema";
+import { ZodSchema } from "zod";
 
 // Convert URLSearchParams to object
 export function convertURLSearchParamsToObject(
@@ -21,21 +22,38 @@ export function convertURLSearchParamsToObject(
   return obj;
 }
 
-// Parse a value using a Zod schema
-export const zodParse = <T extends ZodSchema>(
-  zodSchema: T,
-  value: unknown,
-  options?: FromZodErrorOptions
+export const parseWithPromiseFiltering = <
+  T,
+  Schema extends StandardSchemaV1<T>
+>(
+  schema: Schema,
+  value: unknown
 ) => {
-  const safeParsed = zodSchema.safeParse(value);
+  const safeParsed = schema["~standard"].validate(value);
 
-  if (!safeParsed.success) {
-    throw fromError(safeParsed.error, {
-      ...options,
-    });
+  if (safeParsed instanceof Promise) {
+    throw new Error("Promise returned from schema validation");
   }
 
-  return safeParsed.data;
+  return safeParsed;
+};
+
+export const zodParse = <T extends ZodSchema>(zodSchema: T, value: unknown) => {
+  return zodSchema.parse(value);
+};
+
+// Parse a value using a Zod schema
+export const schemaParse = <T extends StandardSchemaV1>(
+  schema: T,
+  value: unknown
+) => {
+  const safeParsed = parseWithPromiseFiltering(schema, value);
+
+  if (safeParsed.issues) {
+    throw safeParsed;
+  }
+
+  return safeParsed.value;
 };
 
 // Very simple buildUrl function

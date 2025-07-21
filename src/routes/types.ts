@@ -6,7 +6,7 @@ import {
 import Link from "next/link";
 import queryString from "query-string";
 import { ComponentProps } from "react";
-import type { ZodError, ZodSchema, input, output } from "zod";
+import { StandardSchemaV1 } from "../standard-schema";
 
 export type QueryParams = Record<
   string,
@@ -31,8 +31,8 @@ export type RouteBuilderOptions<TBaseUrls extends {}> = {
 export type BaseUrls<T extends {}> = keyof T | (string & {});
 
 export type RouteLink<
-  TParams extends ZodSchema,
-  TSearchParams extends ZodSchema,
+  TParams extends StandardSchemaV1,
+  TSearchParams extends StandardSchemaV1,
   TBaseUrls extends {} = {}
 > = (
   props: Omit<ComponentProps<typeof Link>, "href"> & {
@@ -41,13 +41,13 @@ export type RouteLink<
      * @type {object}
      * @description params is an object which contains the parameters that are required to build the route. It is a required field.
      */
-    params: input<TParams>;
+    params: StandardSchemaV1.InferInput<TParams>;
     /**
      * @name searchParams
      * @type {object}
      * @description searchParams is an object which contains the search parameters that are required to build the route. It is an optional field.
      */
-    searchParams?: input<TSearchParams>;
+    searchParams?: StandardSchemaV1.InferInput<TSearchParams>;
     /**
      * @name searchParamsOptions
      * @type {queryString.StringifyOptions}
@@ -111,12 +111,12 @@ export type SafeParamsResult<T> =
     }
   | {
       success: false;
-      error: ZodError | Error;
+      error: StandardSchemaV1.FailureResult;
     };
 
 export type TypedRouterPushConfig<
-  TParams extends ZodSchema,
-  TSearchParams extends ZodSchema,
+  TParams extends StandardSchemaV1,
+  TSearchParams extends StandardSchemaV1,
   TBaseUrls extends {}
 > = {
   /**
@@ -124,13 +124,13 @@ export type TypedRouterPushConfig<
    * @type {object}
    * @description The parameters required to build the route.
    */
-  params: input<TParams>;
+  params: StandardSchemaV1.InferInput<TParams>;
   /**
    * @name searchParams
    * @type {object}
    * @description Optional search parameters to include in the URL query string.
    */
-  searchParams?: input<TSearchParams>;
+  searchParams?: StandardSchemaV1.InferInput<TSearchParams>;
   /**
    * @name searchParamsOptions
    * @type {queryString.StringifyOptions}
@@ -158,8 +158,8 @@ export type TypedRouterPushConfig<
 };
 
 export type TypedRouterPrefetchConfig<
-  TParams extends ZodSchema,
-  TSearchParams extends ZodSchema,
+  TParams extends StandardSchemaV1,
+  TSearchParams extends StandardSchemaV1,
   TBaseUrls extends {}
 > = Omit<
   TypedRouterPushConfig<TParams, TSearchParams, TBaseUrls>,
@@ -174,8 +174,8 @@ export type TypedRouterPrefetchConfig<
 };
 
 export type TempehRouterInstance<
-  TParams extends ZodSchema,
-  TSearchParams extends ZodSchema,
+  TParams extends StandardSchemaV1,
+  TSearchParams extends StandardSchemaV1,
   TBaseUrls extends {}
 > = {
   /**
@@ -279,8 +279,8 @@ export type TempehGlobalRouterInstance<TBaseUrls extends {}> = (
  * @description RouteConfig is a function which takes an object with name, fn, paramsSchema, searchParamsSchema and options. It returns a function which takes params and options and returns the route with the search params. It also has useParams and useSearchParams functions which returns the params and search params of the route.
  */
 export type RouteConfig<
-  TParams extends ZodSchema,
-  TSearchParams extends ZodSchema,
+  TParams extends StandardSchemaV1,
+  TSearchParams extends StandardSchemaV1,
   TBaseUrls extends {} = {}
 > = {
   /**
@@ -289,9 +289,9 @@ export type RouteConfig<
    * @example navigate({ id: 1 }, { searchParams: { page: 1 } }) -> /user/1?page=1
    */
   navigate: (
-    params: input<TParams>,
+    params: StandardSchemaV1.InferInput<TParams>,
     options?: {
-      searchParams?: input<TSearchParams>;
+      searchParams?: StandardSchemaV1.InferInput<TSearchParams>;
       searchParamsOptions?: queryString.StringifyOptions;
       baseUrl?: BaseUrls<TBaseUrls>;
       hash?: string;
@@ -308,8 +308,8 @@ export type RouteConfig<
   useParams: <TSafe extends boolean = false>(options?: {
     safe?: TSafe;
   }) => TSafe extends true
-    ? SafeParamsResult<output<TParams>>
-    : output<TParams>;
+    ? SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>
+    : StandardSchemaV1.InferOutput<TParams>;
 
   /**
    * @name useParams
@@ -320,7 +320,9 @@ export type RouteConfig<
    */
   useSearchParams: <TSafe extends boolean = false>(options?: {
     safe?: TSafe;
-  }) => output<TSearchParams>;
+  }) => TSafe extends true
+    ? SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>
+    : StandardSchemaV1.InferOutput<TParams>;
 
   /**
    * @name Link
@@ -352,8 +354,8 @@ export type RouteConfig<
     value: TValue,
     safe?: TSafe
   ) => TSafe extends false
-    ? output<TSearchParams>
-    : SafeParamsResult<output<TSearchParams>>;
+    ? StandardSchemaV1.InferOutput<TSearchParams>
+    : SafeParamsResult<StandardSchemaV1.InferOutput<TSearchParams>>;
 
   /**
    * @name parseParams
@@ -365,13 +367,13 @@ export type RouteConfig<
     value: TValue,
     safe?: TSafe
   ) => TSafe extends false
-    ? output<TParams>
-    : SafeParamsResult<output<TParams>>;
+    ? StandardSchemaV1.InferOutput<TParams>
+    : SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>;
 };
 
 export type CreateRouteConfig<
-  TParams extends ZodSchema,
-  TSearchParams extends ZodSchema,
+  TParams extends StandardSchemaV1,
+  TSearchParams extends StandardSchemaV1,
   TBaseUrls extends {}
 > = {
   /**
@@ -385,7 +387,7 @@ export type CreateRouteConfig<
    * @returns {string}
    * @description function which takes params and returns the route. Once you give the paramSchema, it will automatically infer the type of the params.
    */
-  fn: (params: input<TParams>) => string;
+  fn: (params: StandardSchemaV1.InferInput<TParams>) => string;
   /**
    * @name paramsSchema
    * @type {ZodSchema}
