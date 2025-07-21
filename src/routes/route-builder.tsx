@@ -1,6 +1,5 @@
 // route builder insance creator
 import * as React from "react";
-import { ZodSchema, any, output } from "zod";
 import { urlOrRelativeUrlSchema, validPathNameSchema } from "./schema";
 import {
   RouteConfig,
@@ -16,11 +15,16 @@ import {
   useParams as useNextParams,
   useSearchParams as useNextSearchParams,
 } from "next/navigation";
-import { buildUrl, convertURLSearchParamsToObject } from "./utils";
-import { zodParse } from "./utils";
-import { fromZodError } from "zod-validation-error";
+import {
+  buildUrl,
+  convertURLSearchParamsToObject,
+  parseWithPromiseFiltering,
+  schemaParse,
+  zodParse,
+} from "./utils";
 import Link from "next/link";
 import { NavigateOptions } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { StandardSchemaV1 } from "../standard-schema";
 
 /**
 @description Singleton factory to create a route builder instance. This is the main function to create a route builder instance. It will return a frw utilities that can be used to create routes.
@@ -84,8 +88,8 @@ const routeBuilder = <TBaseUrls extends {}>(
 
     // Here comes the function to create the route object
     const createRoute = <
-      TParams extends ZodSchema,
-      TSearchParams extends ZodSchema
+      TParams extends StandardSchemaV1,
+      TSearchParams extends StandardSchemaV1
     >(
       options: CreateRouteConfig<TParams, TSearchParams, TBaseUrls>
     ) => {
@@ -101,24 +105,24 @@ const routeBuilder = <TBaseUrls extends {}>(
 
       const useGetParams = <TSafe extends boolean = false>(safe: TSafe) => {
         if (safe) {
-          const safeResult = paramsSchema.safeParse(useNextParams());
-          if (safeResult.success) {
+          const safeResult = parseWithPromiseFiltering(
+            paramsSchema,
+            useNextParams()
+          );
+
+          if (!safeResult.issues) {
             return {
               success: true,
-              data: safeResult.data,
+              data: safeResult.value,
             } as SafeParamsResult<any>;
           } else {
             return {
               success: false,
-              error: fromZodError(safeResult.error, {
-                prefix: `Error in route "${name}" params`,
-              }),
+              error: safeResult,
             } as SafeParamsResult<any>;
           }
         } else {
-          const result = zodParse(paramsSchema, useNextParams(), {
-            prefix: `Error in route "${name}" params`,
-          });
+          const result = schemaParse(paramsSchema, useNextParams());
           return result;
         }
       };
@@ -126,32 +130,32 @@ const routeBuilder = <TBaseUrls extends {}>(
       const useGetSearchParmas = <TSafe extends boolean = false>(
         safe: TSafe
       ) => {
-        const searchParamsSchemaUpdated = searchParamsSchema || any();
+        const searchParamsSchemaUpdated = searchParamsSchema;
+
+        if (!searchParamsSchemaUpdated) {
+          throw new Error("Search params schema is not defined");
+        }
 
         if (safe) {
-          const safeResult = searchParamsSchemaUpdated.safeParse(
+          const safeResult = parseWithPromiseFiltering(
+            searchParamsSchemaUpdated,
             convertURLSearchParamsToObject(useNextSearchParams())
           );
-          if (safeResult.success) {
+          if (!safeResult.issues) {
             return {
               success: true,
-              data: safeResult.data,
+              data: safeResult.value,
             } as SafeParamsResult<any>;
           } else {
             return {
               success: false,
-              error: fromZodError(safeResult.error, {
-                prefix: `Error in route "${name}" search params`,
-              }),
+              error: safeResult,
             } as SafeParamsResult<any>;
           }
         } else {
-          const result = zodParse(
+          const result = schemaParse(
             searchParamsSchemaUpdated,
-            convertURLSearchParamsToObject(useNextSearchParams()),
-            {
-              prefix: `Error in route "${name}" search params`,
-            }
+            convertURLSearchParamsToObject(useNextSearchParams())
           );
 
           return result;
@@ -161,7 +165,7 @@ const routeBuilder = <TBaseUrls extends {}>(
       // navigate function
       route.navigate = (params, options) => {
         // parse the params
-        const parsedParams = zodParse(paramsSchema, params);
+        const parsedParams = schemaParse(paramsSchema, params);
         // we have got the full route here.
         const fullRoute = getFullRoute(
           fn(parsedParams),
@@ -169,14 +173,14 @@ const routeBuilder = <TBaseUrls extends {}>(
         );
 
         let searchParams = "";
-        if (options?.searchParams) {
-          const validSearchParams = zodParse(
-            searchParamsSchema ?? any(),
+        if (options?.searchParams && searchParamsSchema) {
+          const validSearchParams = schemaParse(
+            searchParamsSchema,
             options.searchParams
           );
 
           searchParams = queryString.stringify(
-            validSearchParams,
+            validSearchParams as {},
             options.searchParamsOptions
           );
         }
@@ -192,18 +196,20 @@ const routeBuilder = <TBaseUrls extends {}>(
       route.useParams = <TSafe extends boolean = false>(options?: {
         safe?: TSafe;
       }): TSafe extends true
-        ? SafeParamsResult<output<TParams>>
-        : output<TParams> => {
+        ? SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>
+        : StandardSchemaV1.InferOutput<TParams> => {
         const output = useGetParams(options?.safe || false);
+        // @ts-expect-error
         return output;
       };
 
       route.useSearchParams = <TSafe extends boolean = false>(options?: {
         safe?: TSafe;
       }): TSafe extends true
-        ? SafeParamsResult<output<TSearchParams>>
-        : output<TSearchParams> => {
+        ? SafeParamsResult<StandardSchemaV1.InferOutput<TSearchParams>>
+        : StandardSchemaV1.InferOutput<TSearchParams> => {
         const output = useGetSearchParmas(options?.safe || false);
+        // @ts-expect-error
         return output;
       };
 
@@ -216,7 +222,7 @@ const routeBuilder = <TBaseUrls extends {}>(
         hash,
         ...props
       }) => {
-        const parsedParams = zodParse(paramsSchema, params);
+        const parsedParams = schemaParse(paramsSchema, params);
 
         const fullRoute = getFullRoute(
           fn(parsedParams),
@@ -224,14 +230,14 @@ const routeBuilder = <TBaseUrls extends {}>(
         );
 
         let parsedSearchParams = "";
-        if (searchParams) {
-          const validSearchParams = zodParse(
-            searchParamsSchema ?? any(),
+        if (searchParams && searchParamsSchema) {
+          const validSearchParams = schemaParse(
+            searchParamsSchema,
             searchParams
           );
 
           parsedSearchParams = queryString.stringify(
-            validSearchParams,
+            validSearchParams as {},
             searchParamsOptions
           );
         }
@@ -261,16 +267,16 @@ const routeBuilder = <TBaseUrls extends {}>(
             baseUrl,
             hash,
           }) => {
-            const parsedParams = zodParse(paramsSchema, params);
+            const parsedParams = schemaParse(paramsSchema, params);
             let parsedSearchParams = "";
-            if (searchParams) {
-              const validSearchParams = zodParse(
-                searchParamsSchema ?? any(),
+            if (searchParams && searchParamsSchema) {
+              const validSearchParams = schemaParse(
+                searchParamsSchema,
                 searchParams
               );
 
               parsedSearchParams = queryString.stringify(
-                validSearchParams,
+                validSearchParams as {},
                 searchParamsOptions
               );
             }
@@ -294,19 +300,19 @@ const routeBuilder = <TBaseUrls extends {}>(
             baseUrl,
             hash,
           }) => {
-            const parsedParams = zodParse(
+            const parsedParams = schemaParse(
               paramsSchema,
               baseUrl ?? routeBaseUrl
             );
             let parsedSearchParams = "";
-            if (searchParams) {
-              const validSearchParams = zodParse(
-                searchParamsSchema ?? any(),
+            if (searchParams && searchParamsSchema) {
+              const validSearchParams = schemaParse(
+                searchParamsSchema,
                 searchParams
               );
 
               parsedSearchParams = queryString.stringify(
-                validSearchParams,
+                validSearchParams as {},
                 searchParamsOptions
               );
             }
@@ -330,16 +336,16 @@ const routeBuilder = <TBaseUrls extends {}>(
             searchParamsOptions,
             hash,
           }) => {
-            const parsedParams = zodParse(paramsSchema, params);
+            const parsedParams = schemaParse(paramsSchema, params);
             let parsedSearchParams = "";
-            if (searchParams) {
-              const validSearchParams = zodParse(
-                searchParamsSchema ?? any(),
+            if (searchParams && searchParamsSchema) {
+              const validSearchParams = schemaParse(
+                searchParamsSchema,
                 searchParams
               );
 
               parsedSearchParams = queryString.stringify(
-                validSearchParams,
+                validSearchParams as {},
                 searchParamsOptions
               );
             }
@@ -358,6 +364,7 @@ const routeBuilder = <TBaseUrls extends {}>(
         };
       };
 
+      // @ts-expect-error
       route.parseParams = <
         TValue extends unknown = unknown,
         TSafe extends boolean = false
@@ -365,28 +372,31 @@ const routeBuilder = <TBaseUrls extends {}>(
         value: TValue,
         safe?: TSafe
       ): TSafe extends true
-        ? SafeParamsResult<output<TParams>>
-        : output<TParams> => {
+        ? SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>
+        : StandardSchemaV1.InferOutput<TParams> => {
         if (safe) {
-          const safeResult = paramsSchema.safeParse(value);
-          if (safeResult.success) {
+          const safeResult = parseWithPromiseFiltering(paramsSchema, value);
+          if (!safeResult.issues) {
             return {
               success: true,
-              data: safeResult.data,
-            } as SafeParamsResult<output<TParams>>;
+              data: safeResult.value,
+            } as SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>;
           } else {
             return {
               success: false,
-              error: fromZodError(safeResult.error, {
-                prefix: `Error in route "${name}" params`,
-              }),
-            } as SafeParamsResult<output<TParams>>;
+              error: safeResult,
+            } as SafeParamsResult<StandardSchemaV1.InferOutput<TParams>>;
           }
         } else {
-          return zodParse(paramsSchema, value) as output<TParams>;
+          // @ts-expect-error
+          return schemaParse(
+            paramsSchema,
+            value
+          ) as StandardSchemaV1.InferOutput<TParams>;
         }
       };
 
+      // @ts-expect-error
       route.parseSearchParams = <
         TValue extends unknown = unknown,
         TSafe extends boolean = false
@@ -394,26 +404,32 @@ const routeBuilder = <TBaseUrls extends {}>(
         value: TValue,
         safe?: TSafe
       ): TSafe extends true
-        ? SafeParamsResult<output<TSearchParams>>
-        : output<TSearchParams> => {
-        const schema = searchParamsSchema ?? any();
+        ? SafeParamsResult<StandardSchemaV1.InferOutput<TSearchParams>>
+        : StandardSchemaV1.InferOutput<TSearchParams> => {
+        const schema = searchParamsSchema;
+        if (!schema) {
+          throw new Error("No searchParamsSchema provided");
+        }
+
         if (safe) {
-          const safeResult = schema.safeParse(value);
-          if (safeResult.success) {
+          const safeResult = parseWithPromiseFiltering(schema, value);
+          if (!safeResult.issues) {
             return {
               success: true,
-              data: safeResult.data,
-            } as SafeParamsResult<output<TSearchParams>>;
+              data: safeResult.value,
+            } as SafeParamsResult<StandardSchemaV1.InferOutput<TSearchParams>>;
           } else {
             return {
               success: false,
-              error: fromZodError(safeResult.error, {
-                prefix: `Error in route "${name}" searchParams`,
-              }),
-            } as SafeParamsResult<output<TSearchParams>>;
+              error: safeResult,
+            } as SafeParamsResult<StandardSchemaV1.InferOutput<TSearchParams>>;
           }
         } else {
-          return zodParse(schema, value) as output<TSearchParams>;
+          //@ts-expect-error
+          return schemaParse(
+            schema,
+            value
+          ) as StandardSchemaV1.InferOutput<TSearchParams>;
         }
       };
 
